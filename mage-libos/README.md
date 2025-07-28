@@ -33,6 +33,9 @@ sudo ./setup-compute.sh
 sudo ./setup-remote.sh
 ```
 
+4. Make sure your compute node and memory node can `ssh` each other without password using 
+your current account
+
 ## 3. Dataset Preparation:
 **WARNING: Takes long time**
 
@@ -45,12 +48,31 @@ Run below on **compute node**.
 
 ## 4. Evaluation
 ### Figure 9 (a)
+On compute node:
+```
+./scripts/bench-gapbs.sh
+```
+This script will compile gapbs, run it and generate one column 
+starting with `magelibos 48 no` in 
+`~/benchmark-out-ae/gapbs/gapbs-pr-kron.txt`
 
 ### Figure 9 (b)
+On compute node:
+```
+./scripts/bench-xsbench.sh
+```
+This script will compile xsbench, run it and generate one column 
+starting with `magelibos 48 no` in 
+`~/benchmark-out-ae/xsbench/xsbench.txt`
 
-### Figure 10 (a)
-
-### FIgure 10 (b)
+### Figure 10
+On compute node:
+```
+./scripts/bench-seq-scan.sh
+```
+This script will compile sequential scan, run it and generate two columns 
+starting with `magelibos 48 no` and `magelibos 48 readahead` in 
+`~/benchmark-out-ae/seq-scan/seq-scan.txt`
 
 ### Figure 11
 
