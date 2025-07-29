@@ -75,6 +75,13 @@ starting with `magelibos 48 no` and `magelibos 48 readahead` in
 `~/benchmark-out-ae/seq-scan/seq-scan.txt`
 
 ### Figure 11
+On compute node:
+```
+./scripts/bench-gups.sh
+```
+This script will compile gups, run it and generate the time series graph
+starting with `magelibos 48 no` in 
+`~/benchmark-out-ae/gups/gups.txt`
 
 ### Figure 12
 #### (a)
