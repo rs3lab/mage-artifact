@@ -74,6 +74,9 @@ This script will compile sequential scan, run it and generate two columns
 starting with `magelibos 48 no` and `magelibos 48 readahead` in 
 `~/benchmark-out-ae/seq-scan/seq-scan.txt`
 
+`magelibos 48 no` is for Figure 10 (a) and `magelibos 48 readahead` is for 
+Figure 10 (b)
+
 ### Figure 11
 On compute node:
 ```
@@ -84,8 +87,16 @@ starting with `magelibos 48 no` in
 `~/benchmark-out-ae/gups/gups.txt`
 
 ### Figure 12
-#### (a)
-#### (b)
+On compute node:
+```
+./scripts/bench-wr-new.sh
+```
+This script will compile wr, run it and generate one column
+starting with `magelibos 48 no` in 
+`~/benchmark-out-ae/wrmem/wr-map.txt` and one column starting 
+with `magelibos 48 readahead` in 
+`~/benchmark-out-ae/wrmem/wr-reduce.txt`
+The former is for Figure 12 (a) and the latter is for Figure 12 (b)
 
 ### Figure 13 (a)
 
