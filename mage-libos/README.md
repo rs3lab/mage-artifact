@@ -99,15 +99,44 @@ with `magelibos 48 readahead` in
 The former is for Figure 12 (a) and the latter is for Figure 12 (b)
 
 ### Figure 13 (a)
+On compute node:
+```
+./scripts/bench-memcached-a.sh
+```
+This script will compile memcached, run it and generate 
+one column starting with `magelibos 24 no` in 
+`~/benchmark-out-ae/memcached/memcached-a.txt`
 
 ### Figure 13 (b)
+On compute node:
+```
+./scripts/bench-memcached-b.sh
+```
+This script will compile memcached, run it and generate 
+one column starting with `magelibos 24 no` in 
+`~/benchmark-out-ae/memcached/memcached-b.txt`
 
-### Figure 14 (a)
-
-### Figure 14 (b)
+### Figure 14
+On compute node:
+```
+./scripts/bench-microbench.sh
+```
+This script will compile microbench, run it and generate 
+one column starting with `magelibos` in 
+`~/benchmark-out-ae/microbench/microbench-lat.txt` 
+and one column starting with `magelibos` in 
+`~/benchmark-out-ae/microbench/microbench-tput.txt` 
+The former is for Figure 14 (a) and the latter is for Figure 14 (b)
 
 ### Figure 16
 
 ### Figure 17 (a)
 
 ### Figure 17 (b)
+On compute node:
+```
+./scripts/bench-gapbs-4cores.sh
+```
+This script will compile gapbs, run it and generate one column 
+starting with `magelibos 4 no` in 
+`~/benchmark-out-ae/gapbs/gapbs-4cores.txt`
