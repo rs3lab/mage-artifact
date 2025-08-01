@@ -58,7 +58,7 @@ for A in ${ALGO[@]}; do
                         for C in ${OMP_CPUS[@]}; do
                             FILE_OUT="${OUT_PATH}/gapbs-kron-nosync-pipelined-4-selective-64-$T-$L-$A-$M-$P-$C-$TRY.txt"
                             run_gapbs_test() {
-                                MYPID=$( ps faux | grep 'qemu-system-x86' | grep -vw grep | awk '{ print $2 }' )
+                                MYPID=$( ps faux | grep 'qemu-system-x86' | grep -vw grep |grep -v scripts | awk '{ print $2 }' )
                                 echo $MYPID
                                 if [[ -n $MYPID ]]; then
                                     kill -9 $MYPID

@@ -96,10 +96,10 @@ function run_iteration_async() {
 
     FILE_OUT="${OUT_PATH}/gapbs-kron-nosync-pipelined-4-selective-${BATCH}-$T-$L-$A-$M-$P-$C-$TRY-${SUFFIX}.txt"
     run_async() {
-        MYPID=$( ps faux | grep 'qemu-system-x86' | grep -vw grep | awk '{ print $2 }' )
+        MYPID=$( ps faux | grep 'qemu-system-x86' | grep -vw grep | grep -v scripts | awk '{ print $2 }' )
         echo $MYPID
         if [[ -n $MYPID ]]; then
-            kill -9 $MYPID
+            sudo kill -9 $MYPID
         fi
 
         ./remote.sh down

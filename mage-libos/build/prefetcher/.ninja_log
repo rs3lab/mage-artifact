@@ -1,3 +1,5 @@
 # ninja log v5
 0	160	1753641681701637005	redis/CMakeFiles/prefetch_redis.dir/redis.c.o	c3355d6d81d4357c
 161	193	1753641681733637377	redis/libprefetch_redis.so	46d5cbfe80775822
+1	162	1754070878180081190	redis/CMakeFiles/prefetch_redis.dir/redis.c.o	c3355d6d81d4357c
+162	193	1754070878208081597	redis/libprefetch_redis.so	46d5cbfe80775822

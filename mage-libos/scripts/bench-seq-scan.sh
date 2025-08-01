@@ -37,10 +37,10 @@ for TRY in ${TRIES[@]}; do
         for S in ${STRIDES[@]}; do
             for P in ${PREFETCHERS[@]}; do
                 for M in ${MEMORIES[@]}; do
-                    MYPID=$( ps faux | grep 'qemu-system-x86' | grep -vw grep | awk '{ print $2 }' )
+                    MYPID=$( ps faux | grep 'qemu-system-x86' | grep -vw grep | grep -v scripts | awk '{ print $2 }' )
                     echo $MYPID
                     if [[ -n $MYPID ]]; then
-                        kill -9 $MYPID
+                        sudo kill -9 $MYPID
                     fi
 
                     ./remote.sh down

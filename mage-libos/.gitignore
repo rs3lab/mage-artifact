@@ -1,0 +1,16 @@
+build/
+ofed.tar.gz
+MLNX_OFED_LINUX-5.2-2.2.3.0-ubuntu18.04-x86_64/
+apps/microbench/numa-config.h
+rdma_monitor/rdma_monitor
+rdma_monitor/*.o
+perf_log*
+perf.data*
+apps/gapbs/gapbs/mage_compile_log*
+.vscode/*
+logs/*
+*.txt
+*.pdf
+enwik9.compressed
+*.png
+*.log
