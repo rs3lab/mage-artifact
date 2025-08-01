@@ -1,0 +1,20 @@
+# Directories storing files downloaded or collected from the OS
+upstream
+ROOTFS
+install
+
+# Downloaded compressed archives
+*.tar
+*.tar.gz
+
+# Terminal settings from the host
+unknown-term/terminfo
+
+# Unpacked mysql releases
+mysql/mysql-*
+
+# Stripped shared objects
+*-stripped.so
+
+# Build directories
+build

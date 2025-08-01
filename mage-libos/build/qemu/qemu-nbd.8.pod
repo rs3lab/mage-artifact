@@ -1,0 +1,318 @@
+=head1 NAME
+
+qemu-nbd - QEMU Disk Network Block Device Server
+
+=head1 SYNOPSIS
+
+B<qemu-nbd> [OPTION]... I<filename>
+
+B<qemu-nbd> B<-L> [OPTION]...
+
+B<qemu-nbd> B<-d> I<dev>
+
+=head1 DESCRIPTION
+
+
+Export a QEMU disk image using the NBD protocol.
+
+Other uses:
+
+=over 4
+
+
+=item *
+
+Bind a /dev/nbdX block device to a QEMU server (on Linux).
+
+=item *
+
+As a client to query exports of a remote NBD server.
+
+=back
+
+
+
+=head1 OPTIONS
+
+I<filename> is a disk image filename, or a set of block
+driver options if B<--image-opts> is specified.
+
+I<dev> is an NBD device.
+
+
+=over 4
+
+
+=item B<--object type,id=>I<id>B<,...props...>
+
+Define a new instance of the I<type> object class identified by I<id>.
+See the C<qemu(1)> manual page for full details of the properties
+supported. The common object types that it makes sense to define are the
+C<secret> object, which is used to supply passwords and/or encryption
+keys, and the C<tls-creds> object, which is used to supply TLS
+credentials for the qemu-nbd server or client.
+
+=item B<-p, --port=>I<port>
+
+The TCP port to listen on as a server, or connect to as a client
+(default B<10809>).
+
+=item B<-o, --offset=>I<offset>
+
+The offset into the image.
+
+=item B<-b, --bind=>I<iface>
+
+The interface to bind to as a server, or connect to as a client
+(default B<0.0.0.0>).
+
+=item B<-k, --socket=>I<path>
+
+Use a unix socket with path I<path>.
+
+=item B<--image-opts>
+
+Treat I<filename> as a set of image options, instead of a plain
+filename. If this flag is specified, the I<-f> flag should
+not be used, instead the 'C<format=>' option should be set.
+
+=item B<-f, --format=>I<fmt>
+
+Force the use of the block driver for format I<fmt> instead of
+auto-detecting.
+
+=item B<-r, --read-only>
+
+Export the disk as read-only.
+
+=item B<-P, --partition=>I<num>
+
+Deprecated: Only expose MBR partition I<num>.  Understands physical
+partitions 1-4 and logical partition 5. New code should instead use
+B<--image-opts> with the raw driver wrapping a subset of the
+original image.
+
+=item B<-B, --bitmap=>I<name>
+
+If I<filename> has a qcow2 persistent bitmap I<name>, expose
+that bitmap via the "qemu:dirty-bitmap:I<name>" context
+accessible through NBD_OPT_SET_META_CONTEXT.
+
+=item B<-s, --snapshot>
+
+Use I<filename> as an external snapshot, create a temporary
+file with backing_file=I<filename>, redirect the write to
+the temporary one.
+
+=item B<-l, --load-snapshot=>I<snapshot_param>
+
+Load an internal snapshot inside I<filename> and export it
+as an read-only device, I<snapshot_param> format is
+'snapshot.id=[ID],snapshot.name=[NAME]' or '[ID_OR_NAME]'
+
+=item B<-n, --nocache>
+
+
+=item B<--cache=>I<cache>
+
+The cache mode to be used with the file.  See the documentation of
+the emulator's C<-drive cache=...> option for allowed values.
+
+=item B<--aio=>I<aio>
+
+Set the asynchronous I/O mode between B<threads> (the default)
+and B<native> (Linux only).
+
+=item B<--discard=>I<discard>
+
+Control whether I<discard> (also known as I<trim> or I<unmap>)
+requests are ignored or passed to the filesystem.  I<discard> is one of
+B<ignore> (or B<off>), B<unmap> (or B<on>).  The default is
+B<ignore>.
+
+=item B<--detect-zeroes=>I<detect-zeroes>
+
+Control the automatic conversion of plain zero writes by the OS to
+driver-specific optimized zero write commands.  I<detect-zeroes> is one of
+B<off>, B<on> or B<unmap>.  B<unmap>
+converts a zero write to an unmap operation and can only be used if
+I<discard> is set to B<unmap>.  The default is B<off>.
+
+=item B<-c, --connect=>I<dev>
+
+Connect I<filename> to NBD device I<dev> (Linux only).
+
+=item B<-d, --disconnect>
+
+Disconnect the device I<dev> (Linux only).
+
+=item B<-e, --shared=>I<num>
+
+Allow up to I<num> clients to share the device (default
+B<1>). Safe for readers, but for now, consistency is not
+guaranteed between multiple writers.
+
+=item B<-t, --persistent>
+
+Don't exit on the last connection.
+
+=item B<-x, --export-name=>I<name>
+
+Set the NBD volume export name (default of a zero-length string).
+
+=item B<-D, --description=>I<description>
+
+Set the NBD volume export description, as a human-readable
+string.
+
+=item B<-L, --list>
+
+Connect as a client and list all details about the exports exposed by
+a remote NBD server.  This enables list mode, and is incompatible
+with options that change behavior related to a specific export (such as
+B<--export-name>, B<--offset>, ...).
+
+=item B<--tls-creds=ID>
+
+Enable mandatory TLS encryption for the server by setting the ID
+of the TLS credentials object previously created with the --object
+option; or provide the credentials needed for connecting as a client
+in list mode.
+
+=item B<--fork>
+
+Fork off the server process and exit the parent once the server is running.
+
+=item B<--pid-file=PATH>
+
+Store the server's process ID in the given file.
+
+=item B<--tls-authz=ID>
+
+Specify the ID of a qauthz object previously created with the
+--object option. This will be used to authorize connecting users
+against their x509 distinguished name.
+
+=item B<-v, --verbose>
+
+Display extra debugging information.
+
+=item B<-h, --help>
+
+Display this help and exit.
+
+=item B<-V, --version>
+
+Display version information and exit.
+
+=item B<-T, --trace [[enable=]>I<pattern>B<][,events=>I<file>B<][,file=>I<file>B<]>
+
+Specify tracing options.
+
+
+=over 4
+
+
+=item B<[enable=]>I<pattern>
+
+Immediately enable events matching I<pattern>
+(either event name or a globbing pattern).  This option is only
+available if QEMU has been compiled with the I<simple>, I<log>
+or I<ftrace> tracing backend.  To specify multiple events or patterns,
+specify the B<-trace> option multiple times.
+
+Use C<-trace help> to print a list of names of trace points.
+
+
+=item B<events=>I<file>
+
+Immediately enable events listed in I<file>.
+The file must contain one event name (as listed in the F<trace-events-all>
+file) per line; globbing patterns are accepted too.  This option is only
+available if QEMU has been compiled with the I<simple>, I<log> or
+I<ftrace> tracing backend.
+
+
+=item B<file=>I<file>
+
+Log output traces to I<file>.
+This option is only available if QEMU has been compiled with
+the I<simple> tracing backend.
+
+=back
+
+
+=back
+
+
+
+=head1 EXAMPLES
+
+Start a server listening on port 10809 that exposes only the
+guest-visible contents of a qcow2 file, with no TLS encryption, and
+with the default export name (an empty string). The command is
+one-shot, and will block until the first successful client
+disconnects:
+
+	
+	qemu-nbd -f qcow2 file.qcow2
+
+
+Start a long-running server listening with encryption on port 10810,
+and whitelist clients with a specific X.509 certificate to connect to
+a 1 megabyte subset of a raw file, using the export name 'subset':
+
+	
+	qemu-nbd \
+	  --object tls-creds-x509,id=tls0,endpoint=server,dir=/path/to/qemutls \
+	  --object 'authz-simple,id=auth0,identity=CN=laptop.example.com,,\
+	            O=Example Org,,L=London,,ST=London,,C=GB' \
+	  --tls-creds tls0 --tls-authz auth0 \
+	  -t -x subset -p 10810 \
+	  --image-opts driver=raw,offset=1M,size=1M,file.driver=file,file.filename=file.raw
+
+
+Serve a read-only copy of just the first MBR partition of a guest
+image over a Unix socket with as many as 5 simultaneous readers, with
+a persistent process forked as a daemon:
+
+	
+	qemu-nbd --fork --persistent --shared=5 --socket=/path/to/sock \
+	  --partition=1 --read-only --format=qcow2 file.qcow2
+
+
+Expose the guest-visible contents of a qcow2 file via a block device
+/dev/nbd0 (and possibly creating /dev/nbd0p1 and friends for
+partitions found within), then disconnect the device when done.
+Access to bind qemu-nbd to an /dev/nbd device generally requires root
+privileges, and may also require the execution of C<modprobe nbd>
+to enable the kernel NBD client module.  I<CAUTION>: Do not use
+this method to mount filesystems from an untrusted guest image - a
+malicious guest may have prepared the image to attempt to trigger
+kernel bugs in partition probing or file system mounting.
+
+	
+	qemu-nbd -c /dev/nbd0 -f qcow2 file.qcow2
+	qemu-nbd -d /dev/nbd0
+
+
+Query a remote server to see details about what export(s) it is
+serving on port 10809, and authenticating via PSK:
+
+	
+	qemu-nbd \
+	  --object tls-creds-psk,id=tls0,dir=/tmp/keys,username=eblake,endpoint=client \
+	  --tls-creds tls0 -L -b remote.example.com
+
+
+
+=head1 SEE ALSO
+
+qemu(1), qemu-img(1)
+
+=head1 AUTHOR
+
+Copyright (C) 2006 Anthony Liguori E<lt>anthony@codemonkey.wsE<gt>.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+

@@ -1,0 +1,214 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>QEMU TCG Plugins &#8212; QEMU 4.2.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Translator Internals" href="tcg.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="qemu-tcg-plugins">
+<h1>QEMU TCG Plugins<a class="headerlink" href="#qemu-tcg-plugins" title="Permalink to this headline">¶</a></h1>
+<p>QEMU TCG plugins provide a way for users to run experiments taking
+advantage of the total system control emulation can have over a guest.
+It provides a mechanism for plugins to subscribe to events during
+translation and execution and optionally callback into the plugin
+during these events. TCG plugins are unable to change the system state
+only monitor it passively. However they can do this down to an
+individual instruction granularity including potentially subscribing
+to all load and store operations.</p>
+<section id="api-stability">
+<h2>API Stability<a class="headerlink" href="#api-stability" title="Permalink to this headline">¶</a></h2>
+<p>This is a new feature for QEMU and it does allow people to develop
+out-of-tree plugins that can be dynamically linked into a running QEMU
+process. However the project reserves the right to change or break the
+API should it need to do so. The best way to avoid this is to submit
+your plugin upstream so they can be updated if/when the API changes.</p>
+<section id="api-versioning">
+<h3>API versioning<a class="headerlink" href="#api-versioning" title="Permalink to this headline">¶</a></h3>
+<p>All plugins need to declare a symbol which exports the plugin API
+version they were built against. This can be done simply by:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">QEMU_PLUGIN_EXPORT</span> <span class="nb">int</span> <span class="n">qemu_plugin_version</span> <span class="o">=</span> <span class="n">QEMU_PLUGIN_VERSION</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>The core code will refuse to load a plugin that doesn’t export a
+<cite>qemu_plugin_version</cite> symbol or if plugin version is outside of QEMU’s
+supported range of API versions.</p>
+<p>Additionally the <cite>qemu_info_t</cite> structure which is passed to the
+<cite>qemu_plugin_install</cite> method of a plugin will detail the minimum and
+current API versions supported by QEMU. The API version will be
+incremented if new APIs are added. The minimum API version will be
+incremented if existing APIs are changed or removed.</p>
+</section>
+<section id="exposure-of-qemu-internals">
+<h3>Exposure of QEMU internals<a class="headerlink" href="#exposure-of-qemu-internals" title="Permalink to this headline">¶</a></h3>
+<p>The plugin architecture actively avoids leaking implementation details
+about how QEMU’s translation works to the plugins. While there are
+conceptions such as translation time and translation blocks the
+details are opaque to plugins. The plugin is able to query select
+details of instructions and system configuration only through the
+exported <em>qemu_plugin</em> functions. The types used to describe
+instructions and events are opaque to the plugins themselves.</p>
+</section>
+</section>
+<section id="usage">
+<h2>Usage<a class="headerlink" href="#usage" title="Permalink to this headline">¶</a></h2>
+<p>The QEMU binary needs to be compiled for plugin support:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">configure</span> <span class="o">--</span><span class="n">enable</span><span class="o">-</span><span class="n">plugins</span>
+</pre></div>
+</div>
+<p>Once built a program can be run with multiple plugins loaded each with
+their own arguments:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$QEMU $OTHER_QEMU_ARGS \
+    -plugin tests/plugin/libhowvec.so,arg=inline,arg=hint \
+    -plugin tests/plugin/libhotblocks.so
+</pre></div>
+</div>
+<p>Arguments are plugin specific and can be used to modify their
+behaviour. In this case the howvec plugin is being asked to use inline
+ops to count and break down the hint instructions by type.</p>
+</section>
+<section id="plugin-life-cycle">
+<h2>Plugin Life cycle<a class="headerlink" href="#plugin-life-cycle" title="Permalink to this headline">¶</a></h2>
+<p>First the plugin is loaded and the public qemu_plugin_install function
+is called. The plugin will then register callbacks for various plugin
+events. Generally plugins will register a handler for the <em>atexit</em>
+if they want to dump a summary of collected information once the
+program/system has finished running.</p>
+<p>When a registered event occurs the plugin callback is invoked. The
+callbacks may provide additional information. In the case of a
+translation event the plugin has an option to enumerate the
+instructions in a block of instructions and optionally register
+callbacks to some or all instructions when they are executed.</p>
+<p>There is also a facility to add an inline event where code to
+increment a counter can be directly inlined with the translation.
+Currently only a simple increment is supported. This is not atomic so
+can miss counts. If you want absolute precision you should use a
+callback which can then ensure atomicity itself.</p>
+<p>Finally when QEMU exits all the registered <em>atexit</em> callbacks are
+invoked.</p>
+</section>
+<section id="internals">
+<h2>Internals<a class="headerlink" href="#internals" title="Permalink to this headline">¶</a></h2>
+<section id="locking">
+<h3>Locking<a class="headerlink" href="#locking" title="Permalink to this headline">¶</a></h3>
+<p>We have to ensure we cannot deadlock, particularly under MTTCG. For
+this we acquire a lock when called from plugin code. We also keep the
+list of callbacks under RCU so that we do not have to hold the lock
+when calling the callbacks. This is also for performance, since some
+callbacks (e.g. memory access callbacks) might be called very
+frequently.</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>A consequence of this is that we keep our own list of CPUs, so that
+we do not have to worry about locking order wrt cpu_list_lock.</p></li>
+<li><p>Use a recursive lock, since we can get registration calls from
+callbacks.</p></li>
+</ul>
+</div></blockquote>
+<p>As a result registering/unregistering callbacks is “slow”, since it
+takes a lock. But this is very infrequent; we want performance when
+calling (or not calling) callbacks, not when registering them. Using
+RCU is great for this.</p>
+<p>We support the uninstallation of a plugin at any time (e.g. from
+plugin callbacks). This allows plugins to remove themselves if they no
+longer want to instrument the code. This operation is asynchronous
+which means callbacks may still occur after the uninstall operation is
+requested. The plugin isn’t completely uninstalled until the safe work
+has executed while all vCPUs are quiescent.</p>
+</section>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">QEMU</a></h1>
+
+
+
+<p class="blurb">Developers Guide</p>
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="kconfig.html">QEMU and Kconfig</a></li>
+<li class="toctree-l1"><a class="reference internal" href="loads-stores.html">Load and Store APIs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="memory.html">The memory API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="migration.html">Migration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stable-process.html">QEMU and the stable process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="testing.html">Testing in QEMU</a></li>
+<li class="toctree-l1"><a class="reference internal" href="decodetree.html">Decodetree Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="secure-coding-practices.html">Secure Coding Practices</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tcg.html">Translator Internals</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">QEMU TCG Plugins</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#api-stability">API Stability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#usage">Usage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#plugin-life-cycle">Plugin Life cycle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#internals">Internals</a></li>
+</ul>
+</li>
+</ul>
+
+
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, The QEMU Project Developers.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

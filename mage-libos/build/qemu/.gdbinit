@@ -1,0 +1,1 @@
+/home/yupan/mage-artifact/mage-libos/qemu/.gdbinit

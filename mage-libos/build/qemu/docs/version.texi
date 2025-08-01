@@ -1,0 +1,2 @@
+@set VERSION 4.2.1
+@set CONFDIR /home/yupan/mage-artifact/mage-libos/build/qemu/etc/qemu

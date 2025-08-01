@@ -1,0 +1,2 @@
+/XSBench: ${MODULE_DIR}/XSBench/openmp-threading/XSBench
+/libgomp.so.1: /lib/x86_64-linux-gnu/libgomp.so.1

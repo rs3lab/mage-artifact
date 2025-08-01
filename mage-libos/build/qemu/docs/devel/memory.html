@@ -1,0 +1,436 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>The memory API &#8212; QEMU 4.2.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Migration" href="migration.html" />
+    <link rel="prev" title="Load and Store APIs" href="loads-stores.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="the-memory-api">
+<h1>The memory API<a class="headerlink" href="#the-memory-api" title="Permalink to this headline">¶</a></h1>
+<p>The memory API models the memory and I/O buses and controllers of a QEMU
+machine.  It attempts to allow modelling of:</p>
+<ul class="simple">
+<li><p>ordinary RAM</p></li>
+<li><p>memory-mapped I/O (MMIO)</p></li>
+<li><p>memory controllers that can dynamically reroute physical memory regions
+to different destinations</p></li>
+</ul>
+<p>The memory model provides support for</p>
+<ul class="simple">
+<li><p>tracking RAM changes by the guest</p></li>
+<li><p>setting up coalesced memory for kvm</p></li>
+<li><p>setting up ioeventfd regions for kvm</p></li>
+</ul>
+<p>Memory is modelled as an acyclic graph of MemoryRegion objects.  Sinks
+(leaves) are RAM and MMIO regions, while other nodes represent
+buses, memory controllers, and memory regions that have been rerouted.</p>
+<p>In addition to MemoryRegion objects, the memory API provides AddressSpace
+objects for every root and possibly for intermediate MemoryRegions too.
+These represent memory as seen from the CPU or a device’s viewpoint.</p>
+<section id="types-of-regions">
+<h2>Types of regions<a class="headerlink" href="#types-of-regions" title="Permalink to this headline">¶</a></h2>
+<p>There are multiple types of memory regions (all represented by a single C type
+MemoryRegion):</p>
+<ul>
+<li><p>RAM: a RAM region is simply a range of host memory that can be made available
+to the guest.
+You typically initialize these with memory_region_init_ram().  Some special
+purposes require the variants memory_region_init_resizeable_ram(),
+memory_region_init_ram_from_file(), or memory_region_init_ram_ptr().</p></li>
+<li><p>MMIO: a range of guest memory that is implemented by host callbacks;
+each read or write causes a callback to be called on the host.
+You initialize these with memory_region_init_io(), passing it a
+MemoryRegionOps structure describing the callbacks.</p></li>
+<li><p>ROM: a ROM memory region works like RAM for reads (directly accessing
+a region of host memory), and forbids writes. You initialize these with
+memory_region_init_rom().</p></li>
+<li><p>ROM device: a ROM device memory region works like RAM for reads
+(directly accessing a region of host memory), but like MMIO for
+writes (invoking a callback).  You initialize these with
+memory_region_init_rom_device().</p></li>
+<li><p>IOMMU region: an IOMMU region translates addresses of accesses made to it
+and forwards them to some other target memory region.  As the name suggests,
+these are only needed for modelling an IOMMU, not for simple devices.
+You initialize these with memory_region_init_iommu().</p></li>
+<li><p>container: a container simply includes other memory regions, each at
+a different offset.  Containers are useful for grouping several regions
+into one unit.  For example, a PCI BAR may be composed of a RAM region
+and an MMIO region.</p>
+<p>A container’s subregions are usually non-overlapping.  In some cases it is
+useful to have overlapping regions; for example a memory controller that
+can overlay a subregion of RAM with MMIO or ROM, or a PCI controller
+that does not prevent card from claiming overlapping BARs.</p>
+<p>You initialize a pure container with memory_region_init().</p>
+</li>
+<li><p>alias: a subsection of another region.  Aliases allow a region to be
+split apart into discontiguous regions.  Examples of uses are memory banks
+used when the guest address space is smaller than the amount of RAM
+addressed, or a memory controller that splits main memory to expose a “PCI
+hole”.  Aliases may point to any type of region, including other aliases,
+but an alias may not point back to itself, directly or indirectly.
+You initialize these with memory_region_init_alias().</p></li>
+<li><p>reservation region: a reservation region is primarily for debugging.
+It claims I/O space that is not supposed to be handled by QEMU itself.
+The typical use is to track parts of the address space which will be
+handled by the host kernel when KVM is enabled.  You initialize these
+by passing a NULL callback parameter to memory_region_init_io().</p></li>
+</ul>
+<p>It is valid to add subregions to a region which is not a pure container
+(that is, to an MMIO, RAM or ROM region). This means that the region
+will act like a container, except that any addresses within the container’s
+region which are not claimed by any subregion are handled by the
+container itself (ie by its MMIO callbacks or RAM backing). However
+it is generally possible to achieve the same effect with a pure container
+one of whose subregions is a low priority “background” region covering
+the whole address range; this is often clearer and is preferred.
+Subregions cannot be added to an alias region.</p>
+</section>
+<section id="migration">
+<h2>Migration<a class="headerlink" href="#migration" title="Permalink to this headline">¶</a></h2>
+<p>Where the memory region is backed by host memory (RAM, ROM and
+ROM device memory region types), this host memory needs to be
+copied to the destination on migration. These APIs which allocate
+the host memory for you will also register the memory so it is
+migrated:</p>
+<ul class="simple">
+<li><p>memory_region_init_ram()</p></li>
+<li><p>memory_region_init_rom()</p></li>
+<li><p>memory_region_init_rom_device()</p></li>
+</ul>
+<p>For most devices and boards this is the correct thing. If you
+have a special case where you need to manage the migration of
+the backing memory yourself, you can call the functions:</p>
+<ul class="simple">
+<li><p>memory_region_init_ram_nomigrate()</p></li>
+<li><p>memory_region_init_rom_nomigrate()</p></li>
+<li><p>memory_region_init_rom_device_nomigrate()</p></li>
+</ul>
+<p>which only initialize the MemoryRegion and leave handling
+migration to the caller.</p>
+<p>The functions:</p>
+<ul class="simple">
+<li><p>memory_region_init_resizeable_ram()</p></li>
+<li><p>memory_region_init_ram_from_file()</p></li>
+<li><p>memory_region_init_ram_from_fd()</p></li>
+<li><p>memory_region_init_ram_ptr()</p></li>
+<li><p>memory_region_init_ram_device_ptr()</p></li>
+</ul>
+<p>are for special cases only, and so they do not automatically
+register the backing memory for migration; the caller must
+manage migration if necessary.</p>
+</section>
+<section id="region-names">
+<h2>Region names<a class="headerlink" href="#region-names" title="Permalink to this headline">¶</a></h2>
+<p>Regions are assigned names by the constructor.  For most regions these are
+only used for debugging purposes, but RAM regions also use the name to identify
+live migration sections.  This means that RAM region names need to have ABI
+stability.</p>
+</section>
+<section id="region-lifecycle">
+<h2>Region lifecycle<a class="headerlink" href="#region-lifecycle" title="Permalink to this headline">¶</a></h2>
+<p>A region is created by one of the memory_region_init*() functions and
+attached to an object, which acts as its owner or parent.  QEMU ensures
+that the owner object remains alive as long as the region is visible to
+the guest, or as long as the region is in use by a virtual CPU or another
+device.  For example, the owner object will not die between an
+address_space_map operation and the corresponding address_space_unmap.</p>
+<p>After creation, a region can be added to an address space or a
+container with memory_region_add_subregion(), and removed using
+memory_region_del_subregion().</p>
+<p>Various region attributes (read-only, dirty logging, coalesced mmio,
+ioeventfd) can be changed during the region lifecycle.  They take effect
+as soon as the region is made visible.  This can be immediately, later,
+or never.</p>
+<p>Destruction of a memory region happens automatically when the owner
+object dies.</p>
+<p>If however the memory region is part of a dynamically allocated data
+structure, you should call object_unparent() to destroy the memory region
+before the data structure is freed.  For an example see VFIOMSIXInfo
+and VFIOQuirk in hw/vfio/pci.c.</p>
+<p>You must not destroy a memory region as long as it may be in use by a
+device or CPU.  In order to do this, as a general rule do not create or
+destroy memory regions dynamically during a device’s lifetime, and only
+call object_unparent() in the memory region owner’s instance_finalize
+callback.  The dynamically allocated data structure that contains the
+memory region then should obviously be freed in the instance_finalize
+callback as well.</p>
+<p>If you break this rule, the following situation can happen:</p>
+<ul class="simple">
+<li><p>the memory region’s owner had a reference taken via memory_region_ref
+(for example by address_space_map)</p></li>
+<li><p>the region is unparented, and has no owner anymore</p></li>
+<li><p>when address_space_unmap is called, the reference to the memory region’s
+owner is leaked.</p></li>
+</ul>
+<p>There is an exception to the above rule: it is okay to call
+object_unparent at any time for an alias or a container region.  It is
+therefore also okay to create or destroy alias and container regions
+dynamically during a device’s lifetime.</p>
+<p>This exceptional usage is valid because aliases and containers only help
+QEMU building the guest’s memory map; they are never accessed directly.
+memory_region_ref and memory_region_unref are never called on aliases
+or containers, and the above situation then cannot happen.  Exploiting
+this exception is rarely necessary, and therefore it is discouraged,
+but nevertheless it is used in a few places.</p>
+<p>For regions that “have no owner” (NULL is passed at creation time), the
+machine object is actually used as the owner.  Since instance_finalize is
+never called for the machine object, you must never call object_unparent
+on regions that have no owner, unless they are aliases or containers.</p>
+</section>
+<section id="overlapping-regions-and-priority">
+<h2>Overlapping regions and priority<a class="headerlink" href="#overlapping-regions-and-priority" title="Permalink to this headline">¶</a></h2>
+<p>Usually, regions may not overlap each other; a memory address decodes into
+exactly one target.  In some cases it is useful to allow regions to overlap,
+and sometimes to control which of an overlapping regions is visible to the
+guest.  This is done with memory_region_add_subregion_overlap(), which
+allows the region to overlap any other region in the same container, and
+specifies a priority that allows the core to decide which of two regions at
+the same address are visible (highest wins).
+Priority values are signed, and the default value is zero. This means that
+you can use memory_region_add_subregion_overlap() both to specify a region
+that must sit ‘above’ any others (with a positive priority) and also a
+background region that sits ‘below’ others (with a negative priority).</p>
+<p>If the higher priority region in an overlap is a container or alias, then
+the lower priority region will appear in any “holes” that the higher priority
+region has left by not mapping subregions to that area of its address range.
+(This applies recursively – if the subregions are themselves containers or
+aliases that leave holes then the lower priority region will appear in these
+holes too.)</p>
+<p>For example, suppose we have a container A of size 0x8000 with two subregions
+B and C. B is a container mapped at 0x2000, size 0x4000, priority 2; C is
+an MMIO region mapped at 0x0, size 0x6000, priority 1. B currently has two
+of its own subregions: D of size 0x1000 at offset 0 and E of size 0x1000 at
+offset 0x2000. As a diagram:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>      <span class="mi">0</span>      <span class="mi">1000</span>   <span class="mi">2000</span>   <span class="mi">3000</span>   <span class="mi">4000</span>   <span class="mi">5000</span>   <span class="mi">6000</span>   <span class="mi">7000</span>   <span class="mi">8000</span>
+      <span class="o">|------|------|------|------|------|------|------|------|</span>
+<span class="n">A</span><span class="p">:</span>    <span class="p">[</span>                                                      <span class="p">]</span>
+<span class="n">C</span><span class="p">:</span>    <span class="p">[</span><span class="n">CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC</span><span class="p">]</span>
+<span class="n">B</span><span class="p">:</span>                  <span class="p">[</span>                          <span class="p">]</span>
+<span class="n">D</span><span class="p">:</span>                  <span class="p">[</span><span class="n">DDDDD</span><span class="p">]</span>
+<span class="n">E</span><span class="p">:</span>                                <span class="p">[</span><span class="n">EEEEE</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>The regions that will be seen within this address range then are:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">CCCCCCCCCCCC</span><span class="p">][</span><span class="n">DDDDD</span><span class="p">][</span><span class="n">CCCCC</span><span class="p">][</span><span class="n">EEEEE</span><span class="p">][</span><span class="n">CCCCC</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Since B has higher priority than C, its subregions appear in the flat map
+even where they overlap with C. In ranges where B has not mapped anything
+C’s region appears.</p>
+<p>If B had provided its own MMIO operations (ie it was not a pure container)
+then these would be used for any addresses in its range not handled by
+D or E, and the result would be:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">CCCCCCCCCCCC</span><span class="p">][</span><span class="n">DDDDD</span><span class="p">][</span><span class="n">BBBBB</span><span class="p">][</span><span class="n">EEEEE</span><span class="p">][</span><span class="n">BBBBB</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Priority values are local to a container, because the priorities of two
+regions are only compared when they are both children of the same container.
+This means that the device in charge of the container (typically modelling
+a bus or a memory controller) can use them to manage the interaction of
+its child regions without any side effects on other parts of the system.
+In the example above, the priorities of D and E are unimportant because
+they do not overlap each other. It is the relative priority of B and C
+that causes D and E to appear on top of C: D and E’s priorities are never
+compared against the priority of C.</p>
+</section>
+<section id="visibility">
+<h2>Visibility<a class="headerlink" href="#visibility" title="Permalink to this headline">¶</a></h2>
+<p>The memory core uses the following rules to select a memory region when the
+guest accesses an address:</p>
+<ul class="simple">
+<li><p>all direct subregions of the root region are matched against the address, in
+descending priority order</p>
+<ul>
+<li><p>if the address lies outside the region offset/size, the subregion is
+discarded</p></li>
+<li><p>if the subregion is a leaf (RAM or MMIO), the search terminates, returning
+this leaf region</p></li>
+<li><p>if the subregion is a container, the same algorithm is used within the
+subregion (after the address is adjusted by the subregion offset)</p></li>
+<li><p>if the subregion is an alias, the search is continued at the alias target
+(after the address is adjusted by the subregion offset and alias offset)</p></li>
+<li><p>if a recursive search within a container or alias subregion does not
+find a match (because of a “hole” in the container’s coverage of its
+address range), then if this is a container with its own MMIO or RAM
+backing the search terminates, returning the container itself. Otherwise
+we continue with the next subregion in priority order</p></li>
+</ul>
+</li>
+<li><p>if none of the subregions match the address then the search terminates
+with no match found</p></li>
+</ul>
+</section>
+<section id="example-memory-map">
+<h2>Example memory map<a class="headerlink" href="#example-memory-map" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">system_memory</span><span class="p">:</span> <span class="n">container</span><span class="o">@</span><span class="mi">0</span><span class="o">-</span><span class="mi">2</span><span class="o">^</span><span class="mi">48</span><span class="o">-</span><span class="mi">1</span>
+ <span class="o">|</span>
+ <span class="o">+----</span> <span class="n">lomem</span><span class="p">:</span> <span class="n">alias</span><span class="o">@</span><span class="mi">0</span><span class="o">-</span><span class="mh">0xdfffffff</span> <span class="o">---&gt;</span> <span class="c1">#ram (0-0xdfffffff)</span>
+ <span class="o">|</span>
+ <span class="o">+----</span> <span class="n">himem</span><span class="p">:</span> <span class="n">alias</span><span class="o">@</span><span class="mh">0x100000000</span><span class="o">-</span><span class="mh">0x11fffffff</span> <span class="o">---&gt;</span> <span class="c1">#ram (0xe0000000-0xffffffff)</span>
+ <span class="o">|</span>
+ <span class="o">+----</span> <span class="n">vga</span><span class="o">-</span><span class="n">window</span><span class="p">:</span> <span class="n">alias</span><span class="o">@</span><span class="mh">0xa0000</span><span class="o">-</span><span class="mh">0xbffff</span> <span class="o">---&gt;</span> <span class="c1">#pci (0xa0000-0xbffff)</span>
+ <span class="o">|</span>      <span class="p">(</span><span class="n">prio</span> <span class="mi">1</span><span class="p">)</span>
+ <span class="o">|</span>
+ <span class="o">+----</span> <span class="n">pci</span><span class="o">-</span><span class="n">hole</span><span class="p">:</span> <span class="n">alias</span><span class="o">@</span><span class="mh">0xe0000000</span><span class="o">-</span><span class="mh">0xffffffff</span> <span class="o">---&gt;</span> <span class="c1">#pci (0xe0000000-0xffffffff)</span>
+
+<span class="n">pci</span> <span class="p">(</span><span class="mi">0</span><span class="o">-</span><span class="mi">2</span><span class="o">^</span><span class="mi">32</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+ <span class="o">|</span>
+ <span class="o">+---</span> <span class="n">vga</span><span class="o">-</span><span class="n">area</span><span class="p">:</span> <span class="n">container</span><span class="o">@</span><span class="mh">0xa0000</span><span class="o">-</span><span class="mh">0xbffff</span>
+ <span class="o">|</span>      <span class="o">|</span>
+ <span class="o">|</span>      <span class="o">+---</span> <span class="n">alias</span><span class="o">@</span><span class="mh">0x00000</span><span class="o">-</span><span class="mh">0x7fff</span>  <span class="o">---&gt;</span> <span class="c1">#vram (0x010000-0x017fff)</span>
+ <span class="o">|</span>      <span class="o">|</span>
+ <span class="o">|</span>      <span class="o">+---</span> <span class="n">alias</span><span class="o">@</span><span class="mh">0x08000</span><span class="o">-</span><span class="mh">0xffff</span>  <span class="o">---&gt;</span> <span class="c1">#vram (0x020000-0x027fff)</span>
+ <span class="o">|</span>
+ <span class="o">+----</span> <span class="n">vram</span><span class="p">:</span> <span class="n">ram</span><span class="o">@</span><span class="mh">0xe1000000</span><span class="o">-</span><span class="mh">0xe1ffffff</span>
+ <span class="o">|</span>
+ <span class="o">+----</span> <span class="n">vga</span><span class="o">-</span><span class="n">mmio</span><span class="p">:</span> <span class="n">mmio</span><span class="o">@</span><span class="mh">0xe2000000</span><span class="o">-</span><span class="mh">0xe200ffff</span>
+
+<span class="n">ram</span><span class="p">:</span> <span class="n">ram</span><span class="o">@</span><span class="mh">0x00000000</span><span class="o">-</span><span class="mh">0xffffffff</span>
+</pre></div>
+</div>
+<p>This is a (simplified) PC memory map. The 4GB RAM block is mapped into the
+system address space via two aliases: “lomem” is a 1:1 mapping of the first
+3.5GB; “himem” maps the last 0.5GB at address 4GB.  This leaves 0.5GB for the
+so-called PCI hole, that allows a 32-bit PCI bus to exist in a system with
+4GB of memory.</p>
+<p>The memory controller diverts addresses in the range 640K-768K to the PCI
+address space.  This is modelled using the “vga-window” alias, mapped at a
+higher priority so it obscures the RAM at the same addresses.  The vga window
+can be removed by programming the memory controller; this is modelled by
+removing the alias and exposing the RAM underneath.</p>
+<p>The pci address space is not a direct child of the system address space, since
+we only want parts of it to be visible (we accomplish this using aliases).
+It has two subregions: vga-area models the legacy vga window and is occupied
+by two 32K memory banks pointing at two sections of the framebuffer.
+In addition the vram is mapped as a BAR at address e1000000, and an additional
+BAR containing MMIO registers is mapped after it.</p>
+<p>Note that if the guest maps a BAR outside the PCI hole, it would not be
+visible as the pci-hole alias clips it to a 0.5GB range.</p>
+</section>
+<section id="mmio-operations">
+<h2>MMIO Operations<a class="headerlink" href="#mmio-operations" title="Permalink to this headline">¶</a></h2>
+<p>MMIO regions are provided with -&gt;read() and -&gt;write() callbacks,
+which are sufficient for most devices. Some devices change behaviour
+based on the attributes used for the memory transaction, or need
+to be able to respond that the access should provoke a bus error
+rather than completing successfully; those devices can use the
+-&gt;read_with_attrs() and -&gt;write_with_attrs() callbacks instead.</p>
+<p>In addition various constraints can be supplied to control how these
+callbacks are called:</p>
+<ul class="simple">
+<li><p>.valid.min_access_size, .valid.max_access_size define the access sizes
+(in bytes) which the device accepts; accesses outside this range will
+have device and bus specific behaviour (ignored, or machine check)</p></li>
+<li><p>.valid.unaligned specifies that the <em>device being modelled</em> supports
+unaligned accesses; if false, unaligned accesses will invoke the
+appropriate bus or CPU specific behaviour.</p></li>
+<li><p>.impl.min_access_size, .impl.max_access_size define the access sizes
+(in bytes) supported by the <em>implementation</em>; other access sizes will be
+emulated using the ones available.  For example a 4-byte write will be
+emulated using four 1-byte writes, if .impl.max_access_size = 1.</p></li>
+<li><p>.impl.unaligned specifies that the <em>implementation</em> supports unaligned
+accesses; if false, unaligned accesses will be emulated by two aligned
+accesses.</p></li>
+</ul>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">QEMU</a></h1>
+
+
+
+<p class="blurb">Developers Guide</p>
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="kconfig.html">QEMU and Kconfig</a></li>
+<li class="toctree-l1"><a class="reference internal" href="loads-stores.html">Load and Store APIs</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">The memory API</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#types-of-regions">Types of regions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#migration">Migration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#region-names">Region names</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#region-lifecycle">Region lifecycle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#overlapping-regions-and-priority">Overlapping regions and priority</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#visibility">Visibility</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example-memory-map">Example memory map</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mmio-operations">MMIO Operations</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="migration.html">Migration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stable-process.html">QEMU and the stable process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="testing.html">Testing in QEMU</a></li>
+<li class="toctree-l1"><a class="reference internal" href="decodetree.html">Decodetree Specification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="secure-coding-practices.html">Secure Coding Practices</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tcg.html">Translator Internals</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tcg-plugins.html">QEMU TCG Plugins</a></li>
+</ul>
+
+
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, The QEMU Project Developers.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

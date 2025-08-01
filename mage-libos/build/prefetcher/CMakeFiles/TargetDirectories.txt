@@ -1,0 +1,5 @@
+/home/yupan/mage-artifact/mage-libos/build/prefetcher/CMakeFiles/edit_cache.dir
+/home/yupan/mage-artifact/mage-libos/build/prefetcher/CMakeFiles/rebuild_cache.dir
+/home/yupan/mage-artifact/mage-libos/build/prefetcher/redis/CMakeFiles/prefetch_redis.dir
+/home/yupan/mage-artifact/mage-libos/build/prefetcher/redis/CMakeFiles/edit_cache.dir
+/home/yupan/mage-artifact/mage-libos/build/prefetcher/redis/CMakeFiles/rebuild_cache.dir

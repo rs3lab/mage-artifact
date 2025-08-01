@@ -1,0 +1,16 @@
+# ninja log v5
+4	78	1753641653601311529	CMakeFiles/mimalloc-static.dir/src/alloc-posix.c.o	2f5c0251f61b229f
+5	91	1753641653617311714	CMakeFiles/mimalloc-static.dir/src/init.c.o	14ce83b8a6ec4a58
+4	107	1753641653633311900	CMakeFiles/mimalloc-static.dir/src/alloc-aligned.c.o	7d3db8eae97e21d4
+1	110	1753641653633311900	CMakeFiles/mimalloc-static.dir/src/random.c.o	5d868a87b9bc2d4b
+2	116	1753641653641311992	CMakeFiles/mimalloc-static.dir/src/arena.c.o	cac7c9f5cfb6260b
+3	128	1753641653653312130	CMakeFiles/mimalloc-static.dir/src/region.c.o	9a5b096f8e6b8b04
+5	143	1753641653665312269	CMakeFiles/mimalloc-static.dir/src/options.c.o	9bfee400a50cd28f
+2	147	1753641653669312316	CMakeFiles/mimalloc-static.dir/src/bitmap.c.o	b2984a0c9104b08b
+4	150	1753641653673312362	CMakeFiles/mimalloc-static.dir/src/heap.c.o	38f4fe844cbd5984
+1	161	1753641653685312501	CMakeFiles/mimalloc-static.dir/src/stats.c.o	3a696a15df548101
+2	203	1753641653729313010	CMakeFiles/mimalloc-static.dir/src/os.c.o	d8c3714a2bad477f
+4	252	1753641653777313566	CMakeFiles/mimalloc-static.dir/src/alloc.c.o	42e5dac21eb7f499
+3	280	1753641653805313890	CMakeFiles/mimalloc-static.dir/src/page.c.o	94bde835558632d
+3	282	1753641653805313890	CMakeFiles/mimalloc-static.dir/src/segment.c.o	7d4b51e2a959ede3
+282	345	1753641653865314584	libmimalloc.a	bc5b94cb6ebc8f64

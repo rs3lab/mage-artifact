@@ -1,0 +1,14 @@
+/home/yupan/mage-artifact/mage-libos/build/remote/CMakeFiles/edit_cache.dir
+/home/yupan/mage-artifact/mage-libos/build/remote/CMakeFiles/rebuild_cache.dir
+/home/yupan/mage-artifact/mage-libos/build/remote/driver/CMakeFiles/remote_local.dir
+/home/yupan/mage-artifact/mage-libos/build/remote/driver/CMakeFiles/remote_rdma.dir
+/home/yupan/mage-artifact/mage-libos/build/remote/driver/CMakeFiles/remote_rdma_delayed.dir
+/home/yupan/mage-artifact/mage-libos/build/remote/driver/CMakeFiles/remote_rdma_count.dir
+/home/yupan/mage-artifact/mage-libos/build/remote/driver/CMakeFiles/edit_cache.dir
+/home/yupan/mage-artifact/mage-libos/build/remote/driver/CMakeFiles/rebuild_cache.dir
+/home/yupan/mage-artifact/mage-libos/build/remote/server/CMakeFiles/remote_server.dir
+/home/yupan/mage-artifact/mage-libos/build/remote/server/CMakeFiles/edit_cache.dir
+/home/yupan/mage-artifact/mage-libos/build/remote/server/CMakeFiles/rebuild_cache.dir
+/home/yupan/mage-artifact/mage-libos/build/remote/lib/CMakeFiles/nonosv.dir
+/home/yupan/mage-artifact/mage-libos/build/remote/lib/CMakeFiles/edit_cache.dir
+/home/yupan/mage-artifact/mage-libos/build/remote/lib/CMakeFiles/rebuild_cache.dir

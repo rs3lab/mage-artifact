@@ -1,0 +1,7 @@
+/home/yupan/mage-artifact/mage-libos/build/mimalloc/mimalloc/CMakeFiles/mimalloc-static.dir
+/home/yupan/mage-artifact/mage-libos/build/mimalloc/mimalloc/CMakeFiles/edit_cache.dir
+/home/yupan/mage-artifact/mage-libos/build/mimalloc/mimalloc/CMakeFiles/rebuild_cache.dir
+/home/yupan/mage-artifact/mage-libos/build/mimalloc/mimalloc/CMakeFiles/list_install_components.dir
+/home/yupan/mage-artifact/mage-libos/build/mimalloc/mimalloc/CMakeFiles/install.dir
+/home/yupan/mage-artifact/mage-libos/build/mimalloc/mimalloc/CMakeFiles/install/local.dir
+/home/yupan/mage-artifact/mage-libos/build/mimalloc/mimalloc/CMakeFiles/install/strip.dir
