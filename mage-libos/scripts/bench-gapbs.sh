@@ -60,8 +60,8 @@ for A in ${ALGO[@]}; do
                             run_gapbs_test() {
                                 MYPID=$( ps faux | grep 'qemu-system-x86' | grep -vw grep |grep -v scripts | awk '{ print $2 }' )
                                 echo $MYPID
-                                if [[ -n $MYPID ]]; then
-                                    kill -9 $MYPID
+                                if [[ -n $MYPID ]] && kill -0 "$MYPID" 2>/dev/null; then
+                                    sudo kill -9 "$MYPID"
                                 fi
 
                                 ./remote.sh down
