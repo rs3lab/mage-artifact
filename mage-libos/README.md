@@ -131,6 +131,13 @@ The former is for Figure 14 (a) and the latter is for Figure 14 (b)
 ### Figure 16
 
 ### Figure 17 (a)
+On compute node:
+```
+./scripts/bench-gapbs-batch.sh
+```
+This script will compile gapbs, run it and generate four columns
+starting with `Pipelined 256` `Pipelined 128` `Pipelined 64` and `SYNC Best` in 
+`~/benchmark-out-ae/gapbs/gapbs-batch.txt`
 
 ### Figure 17 (b)
 On compute node:
