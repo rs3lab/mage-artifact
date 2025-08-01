@@ -1,0 +1,3 @@
+memcached
+*.o
+bench_results

@@ -1,0 +1,13 @@
+#!/bin/zsh -e
+
+if [[ -z $MIND_ROOT ]]; then
+        echo '$MIND_ROOT not set!' >/dev/stderr
+        exit 1
+fi
+source $MIND_ROOT/scripts/config.sh
+cd $MIND_ROOT/mind_linux/util_modules
+
+sudo rmmod fbs_psample &>/dev/null || true
+
+sudo insmod ./fbs_psample.ko sample=$1
+sudo rmmod fbs_psample >/dev/null

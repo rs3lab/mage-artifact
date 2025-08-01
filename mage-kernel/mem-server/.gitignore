@@ -1,0 +1,8 @@
+# object files
+*.o
+clean_rdma_client
+clean_rdma_server
+old_files
+hashmap
+hashmap_test
+*.log

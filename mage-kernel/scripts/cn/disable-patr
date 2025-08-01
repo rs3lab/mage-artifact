@@ -1,0 +1,6 @@
+#!/bin/zsh -e
+
+
+echo 1 | sudo tee /sys/kernel/debug/patr_ipi >/dev/null
+echo 0 | sudo tee /sys/kernel/debug/patr_ipi_fallback >/dev/null
+echo 0 | sudo tee /sys/kernel/debug/patr_sched_tick >/dev/null

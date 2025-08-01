@@ -1,0 +1,12 @@
+{
+    "WARNING": "compute_start_ip and memory_start_ip will be override by control script!",
+
+    "server": "172.29.249.42",
+    "port": 9099,
+    "compute_start_ip": "201",
+    "memory_start_ip": "221",
+    "debug_mode": false,
+    "recording_mode": true,
+    "packet_record_file": "packet_record.dat",
+    "cluster_id": 1
+}

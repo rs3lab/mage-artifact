@@ -1,0 +1,2 @@
+#!/bin/bash
+sudo killall -9 tna_disagg_switch_base

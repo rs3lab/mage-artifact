@@ -1,0 +1,85 @@
+#!/bin/zsh
+
+# Manages the installation of the frontend, and _only_ this frontend
+# installation. Don't confuse this with the script that manages
+# installations for the whole cluster.
+
+frontend_home=$HOME/mind-bench/mind_ctrl
+cd $frontend_home
+
+function run_command () { 
+	echo "$HOST: "
+	indent "$@"
+}
+
+function checkout_frontend_commit () { 
+	echo "$HOST: Checking out frontend commit"
+	chronic -e git checkout "$@"
+}
+
+function show_latest_frontend_commit () { 
+	echo "$HOST: frontend HEAD commit is:"
+	indent git --no-pager log --color=always -2 --abbrev-commit --pretty=oneline
+}
+
+function synchronize_frontend_code () { 
+	echo "$HOST: Pulling frontend changes locally"
+	chronic -e git pull --rebase
+}
+
+function build_frontend () { 
+	show_latest_frontend_commit | tee build-frontend.log
+	./build_mind_ctrl.sh 205 206 2>&1 | tee build-frontend.log
+}
+
+function indent () { 
+	if [ $# -eq 1 ]; then
+		sed -E "s/^/\t/"
+	fi
+	"$@" | sed -E "s/^/\t/"
+}
+
+
+operation="$1"
+shift
+if [ -z "$operation" ]; then
+	echo 'Please select: show, checkout, cmd, sync, build, clean, etc'
+	printf '> '
+	read -r operation
+fi
+
+case "$operation" in 
+	'show') 
+		show_latest_frontend_commit
+		;; 
+	'checkout') 
+		checkout_frontend_commit "$@"
+		;; 
+	'cmd') 
+		run_command "$@"
+		;; 
+	'sync') 
+		synchronize_frontend_code
+		;;
+	'build') 
+		synchronize_frontend_code
+		build_frontend
+		;;
+	'buildonly') 
+		build_frontend
+		;;
+	'clean')
+		make clean 
+		;;
+	'all')
+		synchronize_frontend_code
+		build_frontend
+		;;
+	'allonly')
+		build_frontend
+		;;
+	*)
+		echo "$HOST:mind_ctrl:builder got unknown operation $operation, skipping"
+		exit 0
+		;;
+esac

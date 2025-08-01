@@ -1,0 +1,9 @@
+**/CMakeCache.txt
+CMakeFiles/
+build/
+**/cmake_install.cmake
+
+liblocal_concurrent_hopscotch.a
+CTestTestfile.cmake
+web_frontend
+Makefile

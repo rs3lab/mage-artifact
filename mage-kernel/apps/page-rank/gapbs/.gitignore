@@ -1,0 +1,17 @@
+bc
+bfs
+cc
+cc_sv
+converter
+pr
+gapbs_pr
+pr_spmv
+sssp
+tc
+
+test/out/*.out
+
+benchmark/out/*.out
+benchmark/graphs/*.sg
+benchmark/graphs/*.wsg
+benchmark/graphs/raw/*

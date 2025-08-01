@@ -1,0 +1,54 @@
+# files from the previous merge repo (Disaggregated_mem_bfruntime)
+Makefile.in
+.lib
+.deps
+.libs/
+CMakeFiles
+CMakeCache.txt
+cmake_install.cmake
+*/CMakeFiles
+*/CMakeCache.txt
+*/cmake_install.cmake
+Makefile
+build
+config.json
+
+*.code-workspace
+*.o
+*.out
+
+zlog-cfg-cur
+*.log
+*.log.*
+log/*
+
+# binary
+tna_action_selector
+tna_digest
+tna_exact_match_c
+tna_exact_match
+tna_idletimeout
+tna_disagg_switch/tna_disagg_switch
+
+include
+tna_disagg_switch/include.old
+run_multithreading_switch.sh
+
+.vscode
+*.~undo-tree~
+.clang_complete
+
+# benchmark logs
+benchmark_config_logs
+
+# recorded packet
+*.pcap
+*.dat
+
+# Redis server and dump files
+mind_redis_server
+dump.rdb
+
+# clangd
+.cache/
+compile_commands.json*

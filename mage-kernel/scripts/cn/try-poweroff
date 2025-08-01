@@ -1,0 +1,4 @@
+#!/bin/zsh
+
+sudo pkill -u root tcp_daemon
+sudo poweroff

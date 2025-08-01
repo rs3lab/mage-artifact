@@ -1,0 +1,44 @@
+#!/bin/zsh
+
+if [[ -z $MIND_ROOT ]]; then
+        echo '$MIND_ROOT not set!' >/dev/stderr
+        exit 1
+fi
+source $MIND_ROOT/scripts/config.sh
+cd $MIND_ROOT/scripts
+
+if [[ $# -ne 4 ]]; then
+        echo "cn, fh, bs, lmem_mib"
+        exit 1
+fi
+
+cnthreads=$1
+fhthreads=$2
+bs=$3
+local_mem_mib=$4
+
+log_root='/tmp/logs'
+
+local n_threads=$fhthreads
+
+output_log="$log_root/$n_threads.log"
+pre_log="$log_root/pre.$n_threads.log"
+post_log="$log_root/post.$n_threads.log"
+pre_hwcounter_log="$log_root/pre.hwcounter.$n_threads.log"
+post_hwcounter_log="$log_root/post.hwcounter.$n_threads.log"
+
+mkdir -p $log_root
+
+psample 0
+echo "test-one: generating post-test logfiles"
+date +%s > $post_hwcounter_log
+sudo ethtool -S $cn_nic &>>$post_hwcounter_log
+
+dmesg --color=always -w &> $post_log &
+local dmesg_pid=$!
+pprint
+sleep 3s
+kill $dmesg_pid
+wait $dmesg_pid
+
+sync $pre_log $post_log $pre_hwcounter_log $post_hwcounter_log

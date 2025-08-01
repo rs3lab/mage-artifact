@@ -1,0 +1,23 @@
+#!/bin/zsh -e
+
+function set-batch-size () { 
+	local bs=$1
+	sed -Ei "s/#define MIND_BATCH_SIZE.*/#define MIND_BATCH_SIZE $bs/" \
+		roce_for_disagg/roce_disagg.h
+	chronic make clean
+	chronic make
+}
+
+rm -rf logs
+
+mkdir -p class1-deepsweep
+
+local cnqp=0
+for bs in 1 2 4 8 16 32 64; do 
+	set-batch-size $bs
+	for fhqp in 1 2 $(seq 4 4 64); do 
+		./test-one.zsh $cnqp $fhqp $(( cnqp + fhqp ))
+		sleep 5
+	done
+	mv logs "class1-deepsweep/bs$bs-logs"
+done

@@ -1,0 +1,4 @@
+#!/bin/zsh
+
+killall clean_rdma_server
+exit 0

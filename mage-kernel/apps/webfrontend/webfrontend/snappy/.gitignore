@@ -1,0 +1,15 @@
+# Editors.
+*.sw*
+.vscode
+.DS_Store
+*.a
+
+
+# Build directory.
+build/
+out/
+
+SnappyConfig.cmake
+config.h
+snappy-stubs-public.h
+Makefile

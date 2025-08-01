@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+if [[ -z $MIND_ROOT ]]; then
+        echo '$MIND_ROOT not set!' >/dev/stderr
+        exit 1
+fi
+source $MIND_ROOT/scripts/config.sh
+
+$MIND_ROOT/scripts/bricks/v_init_network.sh

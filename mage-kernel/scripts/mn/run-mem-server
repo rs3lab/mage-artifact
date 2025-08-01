@@ -1,0 +1,16 @@
+#!/bin/zsh
+
+if [[ -z $MIND_ROOT ]]; then
+	echo '$MIND_ROOT not set!' >/dev/stderr
+	exit 1
+fi
+source $MIND_ROOT/scripts/config.sh
+cd $MIND_ROOT/mem-server
+
+echo "$HOST: rebuilding mem server (no output => success)"
+chronic -e make clean_rdma_server
+
+echo "$HOST: starting mem server"
+nohup unbuffer numactl --membind $mn_nic_numa -N $mn_nic_numa \
+	./clean_rdma_server $mn_data_ip >mem_server.log 2>&1 </dev/null &
+disown

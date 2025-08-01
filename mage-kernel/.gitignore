@@ -1,0 +1,9 @@
+.vscode
+*.code-workspace
+*.log
+mind_linux/test_programs/futex/server/nohup.out
+mind_internal_log/*
+compile_commands.json
+compile_commands.json.*
+.project-root
+.cache/

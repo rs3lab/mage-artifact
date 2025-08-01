@@ -1,0 +1,6 @@
+bin/*
+*/bin/*
+# multithreading/*
+multithreading/launcher_thread
+multithreading/1
+06a_switch_launch_task/test_output

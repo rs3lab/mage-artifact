@@ -1,0 +1,9 @@
+*.o
+*.swp
+*.old
+config.json
+CMakeFiles
+CMakeCache.txt
+cmake_install.cmake
+gen-cpp
+tna_disagg_switch_base

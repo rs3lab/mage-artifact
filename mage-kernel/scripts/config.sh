@@ -1,0 +1,1 @@
+bricks/g_set_env.sh

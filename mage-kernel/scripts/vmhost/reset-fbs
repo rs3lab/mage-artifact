@@ -1,0 +1,111 @@
+#!/bin/zsh -e
+
+if [[ -z $MIND_ROOT ]]; then
+	echo '$MIND_ROOT not set!' >/dev/stderr
+	exit 1
+fi
+source $MIND_ROOT/scripts/config.sh
+cd $MIND_ROOT
+
+flags=$1
+
+# error when we access undefined variables
+set no_unset
+
+# Get IP address vars, etc.
+
+function last_digits () {
+  echo $1 | awk -F '.' '{print $4}'
+}
+
+function fbsc_shutoff () {
+	sudo virsh list --state-shutoff --name | grep -qw $cn_vm_name
+}
+
+function fbsc_online () {
+    ping -c 1 $cn_control_ip &> /dev/null
+    return $?
+}
+
+function fbss_online () {
+    if ssh -q $mn_control_sshname exit; then 
+	    return 0
+    else
+	    return 1
+    fi
+}
+
+function gently-kill-fbsc () {
+	ssh $cn_control_sshname try-poweroff || true
+
+	# wait for death if it happens
+	local start_time=$(date +%s)
+	while true; do
+		if fbsc_shutoff; then
+			return
+		fi
+
+		# Check if the timeout has been reached
+		current_time=$(date +%s)
+		elapsed_time=$((current_time - start_time))
+		if (( elapsed_time >= 10 )); then
+			break
+		fi
+		sleep 1
+	done
+
+	sudo virsh destroy $cn_vm_name || true
+	sleep 5s
+}
+
+
+# BEGIN SCRIPT
+
+if [[ $flags = '--no-reboot' ]]; then
+	echo "Won't reboot compute node (--no-reboot passed)"
+else
+	
+	echo "(Re)starting compute node"
+	# Shut down and reset the CN + MN + NIC.
+	if ! fbsc_shutoff; then
+		echo "Shutting down and resetting CN and shared NIC"
+		gently-kill-fbsc
+	fi
+
+	sudo virsh start $cn_vm_name
+
+	echo "Sleeping for 40s"
+	sleep 40
+
+	if fbsc_online && fbss_online; then
+		echo "FBSC+FBSS responding to ping, proceeding."
+	else
+		echo "ERROR: FBSC/FBSS NIC FAILS EVEN AFTER REBOOT"
+		exit 1
+	fi
+fi
+
+
+echo "Starting frontend"
+$MIND_ROOT/frontend/run_mind_ctrl.sh
+
+echo "Initializing MN"
+ssh $mn_control_sshname '$MIND_ROOT/scripts/bricks/v_init_mn_module.sh'
+
+echo "Sleeping for 10s"
+sleep 10
+
+echo "Initializing CN"
+ssh $cn_control_sshname '$MIND_ROOT/scripts/bricks/v_init_cn_module.sh'
+
+echo "Sleeping for 8s"
+sleep 8
+
+echo "Disabling PATR"
+ssh $cn_control_sshname '$MIND_ROOT/scripts/cn/disable-patr'
+
+echo "Disabling CPU frequency scaling."
+for cpu in {2..55}; do 
+	sudo cpufreq-set -c $cpu --min 2.5GHz --max 2.6Ghz -g performance
+done
+echo "CPUs should now be running at $(cat /sys/devices/system/cpu/cpu2/cpufreq/scaling_max_freq) kilohertz"

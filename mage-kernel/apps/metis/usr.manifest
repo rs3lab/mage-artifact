@@ -1,0 +1,3 @@
+/wc: ${MODULE_DIR}/metis/obj/app/wc
+/wr: ${MODULE_DIR}/metis/obj/app/wr
+/wrmem: ${MODULE_DIR}/metis/obj/app/wrmem

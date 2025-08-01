@@ -1,0 +1,49 @@
+#!/bin/zsh -e
+
+function set-param () {
+  local key=$1
+	local val=$2
+	sed -Ei "s/#define ${key}.*/#define ${key} ${val}/" \
+		roce_for_disagg/roce_disagg.h
+}
+
+function set-queues () {
+	local cn_qp=$1
+	local fh_qp=$2
+	local cn_txd=$3
+	local fh_txd=$4
+	local max_txd=$((cn_txd > fh_txd ? cn_txd : fh_txd))
+
+	set-param MIND_RDMA_MAX_NUM_FHQP 64
+	set-param MIND_RDMA_MAX_NUM_CNQP 16
+	set-param MIND_RDMA_MAX_QP_TRANSMISSION_DEPTH $max_txd
+
+	set-param MIND_RDMA_FHQP_TRANSMISSION_DEPTH $fh_txd
+	set-param MIND_RDMA_FHCQ_SIZE               1
+	set-param MIND_RDMA_FHCQ_POLL_BATCH_SIZE    1
+
+	set-param MIND_RDMA_CNQP_TRANSMISSION_DEPTH $cn_txd
+	set-param MIND_RDMA_CNCQ_SIZE               $cn_txd
+	set-param MIND_RDMA_CNCQ_POLL_BATCH_SIZE    16
+
+	chronic make clean
+	chronic make
+}
+
+rm -rf logs
+mkdir -p class3
+
+local cn=1
+local fh=1
+local fh_txd=1
+
+for cn_txd in 1 16 32; do
+	for fh_qp in 1 16 32 48; do
+		for cn_qp in 1 4 8; do
+			set-queues $cn_qp $fh_qp $cn_txd $fh_txd
+			./test-one.zsh $cn_qp $fh_qp $cn_qp $fh_qp
+			sleep 5
+		done
+	done
+	mv logs "class3/cntxd${cn_txd}-logs"
+done

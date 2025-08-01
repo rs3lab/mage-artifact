@@ -1,0 +1,31 @@
+#!/bin/zsh -e
+
+# Run this script in vmhost4 only? 
+
+PCI_ADDRESS="0000:01:00.0"
+MLX_DEVICE_NAME="01:00.0"
+DEFAULT_DRIVER="mlx5_core"
+
+function sudowrite () { 
+	local destfile=$1
+	shift
+	echo "$@" | sudo tee $destfile >/dev/null
+}
+
+# Unbind the NIC from vfio-pci
+sudowrite /sys/bus/pci/devices/$PCI_ADDRESS/driver/unbind $PCI_ADDRESS
+
+# Bind to the default Mellanox driver
+sudowrite /sys/bus/pci/devices/$PCI_ADDRESS/driver_override $DEFAULT_DRIVER
+sudowrite /sys/bus/pci/drivers_probe $PCI_ADDRESS 
+
+# Reset NIC firmware
+# TODO(yash): Find out why this doesn't work.
+#             Even after we switch to `mlx5_core` driver, the NVIDIA tool
+#             complains that the
+#             complaining that only
+sudo mlxfwreset -d $MLX_DEVICE_NAME --level 3 --type 0 --sync 0 --yes reset
+#sudo mlxfwreset -d $MLX_DEVICE_NAME --level 3 --type 0 --sync 0 --skip_driver --yes reset
+
+# NOTE: device is left bound to "$DEFAULT_DRIVER". 
+# `virsh start` can take care of the vfio-pci binding itself. 

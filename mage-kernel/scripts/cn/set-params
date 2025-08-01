@@ -1,0 +1,51 @@
+#!/bin/zsh -e
+
+if [[ -z $MIND_ROOT ]]; then
+        echo '$MIND_ROOT not set!' >/dev/stderr
+        exit 1
+fi
+source $MIND_ROOT/scripts/config.sh
+cd $MIND_ROOT/scripts/cn
+
+# PARSE ARGUMENTS
+
+if [[ $# -ne 4 ]]; then 
+	echo 'prg_name cn bs mem'
+	exit 1
+fi
+
+local prg_name=$1
+local prg_digit=$(( $( echo $prg_name | wc -c ) - 1 ))
+local cn=$2
+local bs=$3
+local mem_mib=$4
+
+# CHOOSE THE PROGRAM TO RUN
+
+function set-config () {
+        # No fundamental difference between this and ./set-param.
+        # It just edits different config files we edit.
+        sed -Ei "s/#define ${key}.*/#define ${key} ${val}/" \
+                $MIND_ROOT/mind_linux/include/disagg/config.h
+}
+set-config TEST_PROGRAM_NAME "\"$prg_name\""
+set-config TEST_PROGRAM_DIGIT $prg_digit
+
+
+# SET CNTHREAD PARAMETERS
+
+./set-param NUM_CNTHREADS $cn
+./set-param CNTHREAD_RECLAIM_BATCH_SIZE $bs
+
+
+# SET DRAM CACHE PARAMETERS
+
+local mem_pages=$(( $mem_mib * 256 ))
+local dram_pages=$(( mem_pages * 10 / 9 ))
+cma_size_pages=9961472
+
+if [[ $dram_pages -ge $cma_size_pages ]]; then
+        echo 'CMA Area too small for this memory size!' >/dev/stderr
+        exit 1
+fi
+./set-param CNTHREAD_MAX_CACHE_BLOCK_NUMBER "${dram_pages}UL"

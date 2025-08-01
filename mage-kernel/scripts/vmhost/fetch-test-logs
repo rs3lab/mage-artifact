@@ -1,0 +1,16 @@
+#!/bin/zsh
+
+if [[ -z $MIND_ROOT ]]; then
+        echo '$MIND_ROOT not set!' >/dev/stderr
+        exit 1
+fi
+source $MIND_ROOT/scripts/config.sh
+
+if [[ $# -ne 1 ]]; then
+        echo "provide out dir"
+        exit 1
+fi
+
+out=$1
+
+scp -r $cn_control_sshname:/tmp/logs $out

@@ -1,0 +1,3 @@
+[submodule "mind_linux/test_programs/90_mind_daemons/01_thrift_tcp_client/mind_ctrl_thrift"]
+	path = mind_linux/test_programs/90_mind_daemons/01_thrift_tcp_client/mind_ctrl_thrift
+	url = https://shsym@github.com/shsym/mind_ctrl_thrift.git

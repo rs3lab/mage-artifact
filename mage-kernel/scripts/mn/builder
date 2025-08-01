@@ -1,0 +1,90 @@
+#!/bin/zsh
+
+if [[ -z $MIND_ROOT ]]; then
+	echo '$MIND_ROOT not set!' >/dev/stderr
+	exit 1
+fi
+source $MIND_ROOT/scripts/config.sh
+cd $MIND_ROOT/mem-server
+
+# This script builds, installs, and manages the MN server side of the FBS.
+# It's called by the `manager` script.
+
+# It's not very complete right now.
+# It only supports sync operations, etc. TODO(
+
+function run_command () { 
+	echo "$HOST:mind_next: "
+	indent "$@"
+}
+
+function checkout_commit () { 
+	echo "$HOST: Checking out commit"
+	chronic -e git checkout "$@"
+}
+
+function show_latest_commit () { 
+	echo "$HOST:mind_next: mem server HEAD commit is:"
+	indent git --no-pager log --color=always -2 --abbrev-commit --pretty=oneline
+}
+
+function synchronize_code () { 
+	echo "$HOST:mind_next: Pulling mem server changes"
+	chronic -e git pull --rebase
+}
+
+function build_mem_server () {
+	echo "$HOST:mind_next: building mem server (no output=>success)"
+	show_latest_commit | tee build.log
+	chronic -e ./build-mem-server
+}
+
+function indent () { 
+	if [ $# -eq 1 ]; then
+		sed -E "s/^/\t/"
+	fi
+	"$@" | sed -E "s/^/\t/"
+}
+
+
+operation="$1"
+shift
+if [ -z "$operation" ]; then
+	echo 'Please select: show, sync, build, install, all, clean, '
+	echo '               buildonly, installonly, allonly, etc'
+	printf '> '
+	read -r operation
+fi
+
+case "$operation" in 
+	'show') 
+		show_latest_commit
+		;; 
+	'checkout') 
+		checkout_commit "$@"
+		;; 
+	'cmd') 
+		run_command "$@"
+		;; 
+	'sync') 
+		synchronize_code
+		;;
+	'build') 
+		synchronize_code
+		build_mem_server
+		;;
+	'buildonly') 
+		build_mem_server
+		;;
+	'all') 
+		synchronize_code
+		build_mem_server
+		;;
+	'allonly') 
+		build_mem_server
+		;;
+	*)
+		echo "$HOST:mind_next:builder: unknown operation $operation, skipping"
+		exit 0
+		;;
+esac

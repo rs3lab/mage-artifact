@@ -1,0 +1,132 @@
+#!/bin/zsh -e
+
+# Manages a FBS cluster.
+
+if [[ -z $MIND_ROOT ]]; then
+	echo '$MIND_ROOT not set!' >/dev/stderr
+	exit 1
+fi
+source $MIND_ROOT/scripts/config.sh
+cd $MIND_ROOT
+
+ssh_cmd="ssh -t -o LogLevel=QUIET"
+
+function builder_for_each_target () {
+	case $target in
+		'cn')
+			echo "Connecting to cn:"
+			indent ${=ssh_cmd} $cn_control_sshname '$MIND_ROOT/scripts/cn/builder' "$@"
+			echo "Connecting to vmhost"
+			indent "$MIND_ROOT/scripts/bricks/builder.zsh" "$@"
+			;;
+		'mn')
+			# mind-next only. the mind_internal is in the scripts target.
+			echo "Connecting to mn:"
+			indent ${=ssh_cmd} $mn_control_sshname '$MIND_ROOT/scripts/mn/builder' "$@"
+			;;
+		'scripts')
+			echo "Connecting to vmhost:"
+			indent $MIND_ROOT/scripts/bricks/builder.zsh "$@"
+			;;
+		'frontend')
+			echo "Connecting to vmhost kernel"
+			indent $MIND_ROOT/scripts/bricks/builder.zsh "$@"
+			echo "Connecting to vmhost frontend"
+			indent $vmhost4_mind_ctrl/builder "$@"
+			;;
+		'all')
+			echo "Connecting to cn:"
+			indent ${=ssh_cmd} $cn_control_sshname '$MIND_ROOT/scripts/cn/builder' "$@"
+			echo "Connecting to mn:"
+			indent ${=ssh_cmd} $mn_control_sshname '$MIND_ROOT/scripts/mn/builder' "$@"
+			echo "Connecting to vmhost"
+			indent "$MIND_ROOT/scripts/bricks/builder.zsh" "$@"
+			;;
+		*)
+			echo "Unknown target" >/dev/stderr
+			exit 1
+			;;
+	esac
+}
+
+
+function cmd_for_each_target () {
+	# Assume `builder` in VM PATH comes from mind_internal repo
+	# (aka /home/yash/mind-bench/mind_ctrl)
+	case $target in
+		'cn')
+			${=ssh_cmd} $cn_control_sshname "cd \$MIND_ROOT && $@"
+			;;
+		'mn')
+			${=ssh_cmd} $mn_control_sshname "cd \$MIND_ROOT && $@"
+			;;
+		'frontend')
+			(cd $MIND_ROOT && "$@")
+			;;
+		'all')
+			${=ssh_cmd} $cn_control_sshname "cd \$MIND_ROOT && $@"
+			${=ssh_cmd} $mn_control_sshname "cd \$MIND_ROOT && $@"
+			(cd $MIND_ROOT && "$@")
+			;;
+		*)
+			echo "Unknown target" >/dev/stderr
+			exit 1
+			;;
+	esac
+}
+
+function indent () { 
+	if [ $# -eq 1 ]; then
+		sed -E "s/^/\t/"
+	fi
+	"$@" | sed -E "s/^/\t/"
+	cmd_exit=${PIPESTATUS[0]}
+	if [[ $cmd_exit -ne 0 ]]; then
+		return "$cmd_exit"
+	fi
+}
+
+function quote () {
+	printf %q "$*"
+}
+
+
+if [[ $# -eq 0 ]]; then
+	echo "$0 <target> <operation>"
+	echo "(or $0 <operation> for 1-token operations)"
+	exit 1
+fi
+
+if [[ $# -lt 2 ]]; then
+	target='all'
+	operation=$1
+	shift
+else
+	target=$1
+	operation=$2
+	shift 2
+fi
+
+if [ -z "$target" ]; then
+	echo 'Please select: cn, mn, scripts, frontend, all'
+	printf '> '
+	read -r target
+fi
+if [ -z "$operation" ]; then
+	echo 'Please select: sync, build, install'
+	printf '> '
+	read -r operation
+fi
+
+case $operation in
+	'checkout') 
+		builder_for_each_target checkout "$@"
+		;; 
+	'cmd') 
+		# issues with parsing spaces and all that
+		cmd_for_each_target "$@"
+		;; 
+	*)
+		builder_for_each_target $operation "$@"
+		;;
+esac
