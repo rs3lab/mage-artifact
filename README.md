@@ -3,7 +3,11 @@
 ## Overview
 *Mage* is a remote memory system that enables offloading of scalable memory-intensive applications.
 
-*Mage* is built on three principles to remove the system software overhead and achieve near hardware line-rate performance. The three principles are: 1. **Asynchronous decoupling** where *Mage* dedicates cores for eviction and disallows synchronous reclamation. 2. **Pipelined execution** where *Mage* splits one batch in reclamation into multiple and executes different stages in eviction in an out-of-order fashion with multiple batches. 3. **Contention avoidance** *Mage* prioritizes scalability over locality in its data structure design.
+*Mage* is built on three principles to remove the system software overhead and achieve near hardware line-rate performance. The three principles are:
+
+1. **Asynchronous decoupling** where *Mage* dedicates cores for eviction and disallows synchronous reclamation.
+2. **Pipelined execution** where *Mage* splits one batch in reclamation into multiple and executes different stages in eviction in an out-of-order fashion with multiple batches.
+3. **Contention avoidance** *Mage* prioritizes scalability over algorithmic accuracy in its data structure design.
 
 This repo includes the source code and documentation of *Mage*. Its organization is listed below.
 ```bash
