@@ -129,6 +129,14 @@ and one column starting with `magelibos` in
 The former is for Figure 14 (a) and the latter is for Figure 14 (b)
 
 ### Figure 16
+On compute node:
+```
+./scripts/bench-breakdown.sh
+```
+This script will compile gapbs, run it and generate 
+four columns starting with `l2` `lru` `pipelined` and 
+`baseline` in 
+`~/benchmark-out-ae/gapbs/gapbs-breakdown.txt`
 
 ### Figure 17 (a)
 On compute node:
