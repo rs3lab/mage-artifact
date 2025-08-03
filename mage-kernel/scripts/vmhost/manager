@@ -29,10 +29,8 @@ function builder_for_each_target () {
 			indent $MIND_ROOT/scripts/bricks/builder.zsh "$@"
 			;;
 		'frontend')
-			echo "Connecting to vmhost kernel"
-			indent $MIND_ROOT/scripts/bricks/builder.zsh "$@"
 			echo "Connecting to vmhost frontend"
-			indent $vmhost4_mind_ctrl/builder "$@"
+			indent $MIND_ROOT/frontend/builder "$@"
 			;;
 		'all')
 			echo "Connecting to cn:"

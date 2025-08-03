@@ -14,12 +14,7 @@ if [[ "$(git rev-parse --abbrev-ref HEAD)" != 'sosp_ae_latency_breakdown' ]]; th
         exit 1
 fi
 
-# COMPILE THE BENCHMARK APPLICATION.
-
-echo "Compiling the sequential read latency breakdown benchmark...no output means success"
-chronic make
-
-# RUN THE TESTS
+# COMPILE THE BENCHMARK APPLICATION, COMPILE KERNEL, RUN TESTS
 echo "Running tests!"
 ./test-ssh.zsh
 

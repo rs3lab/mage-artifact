@@ -11,7 +11,8 @@ echo "Execute this on the VM host only!"
 
 
 # COMPILE THE BENCHMARK APPLICATION.
-
+ssh $cn_control_sshname \
+	'cd $MIND_ROOT/apps/page-rank/gapbs && make && if [[ -f pr ]]; then mv pr gapbs_pr; fi'
 
 # RUN THE TESTS
 echo "Running tests!"

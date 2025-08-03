@@ -211,18 +211,6 @@ int mn_populate_cache(u16 tgid, u16 pid_ns_id, u16 pid, unsigned long addr, unsi
 	cacheman_request_unlock();
 recheck_free_entry:
 	cacheman_run_lock();	// To prevent confliction with cache manager thread
-	// in case we run out of entry for merge
-	if ((num_entry_free = get_free_dir_cnt()) < DYN_CACHE_MIN_DIR_FOR_MMAP + num_entry_needed) {
-		cacheman_run_unlock();
-		if ((++recheck_free_entry_cnt) >= DYN_CACHE_MMAP_MAX_RETRY) {
-			printf("No enough entry: free[%d] need[%d]\n", num_entry_free, num_entry_needed);
-			// TODO: let it fail below, just for now...
-		} else {
-			printf("Low entry: free[%d] need[%d], wait...\n", num_entry_free, num_entry_needed);
-			usleep(DYN_CACHE_SLEEP_US_IF_NO_DIR);
-			goto recheck_free_entry;
-		}
-	}
 
 	// 16 KB for the first TEST_DEBUG_SIZE_LIMIT entries
 	int i;
@@ -433,6 +421,11 @@ unsigned long mn_do_mremap(struct task_struct *tsk, unsigned long addr, unsigned
 	return res;
 }
 
+// This function returns ENOMEM on failure...and also on some types of success.
+// The wrapper function catches this ENOMEM, and returns "0" instead...
+// Based on what system call is ongoing, the client kernel replaces this "0" return value with
+// mm->brk.
+// So the return value isn't supposed to be logical here.
 unsigned long mn_do_brk(struct task_struct *tsk, unsigned long brk, int nid)
 {
 	unsigned long newbrk, oldbrk;
@@ -441,13 +434,13 @@ unsigned long mn_do_brk(struct task_struct *tsk, unsigned long brk, int nid)
 	unsigned long min_brk;
 	struct munmap_msg_struct tmp_req;
 
+	printf("BRK: addr: 0x%lx, mm->brk: 0x%lx\n", brk, mm->brk);
+
 	sem_wait(&mm->mmap_sem);
 
 	min_brk = mm->start_brk;
 	if (brk < min_brk)
-		goto out;
-
-	printf("BRK: addr: 0x%lx, mm->brk: 0x%lx\n", brk, mm->brk);
+		goto enomem;
 
 	/*
 	 * Check against rlimit here. If this check is done later after the test
@@ -464,161 +457,155 @@ unsigned long mn_do_brk(struct task_struct *tsk, unsigned long brk, int nid)
 	if (brk <= mm->brk) {
 		if (!mn_munmap(mm, newbrk, oldbrk-newbrk))
 			goto set_brk;
-		goto out;
+		goto enomem;
 	}
 
 	/* Check against existing mmap mappings. */
 	next_vma = mn_find_vma(mm, oldbrk);
 	if (next_vma && newbrk + PAGE_SIZE > vm_start_gap(next_vma))
-		goto out;
+		goto enomem;
 
 	/* Ok, looks good - let it rip. */
 	if (mn_do_brk_flags(tsk, oldbrk, newbrk-oldbrk, 0) < 0)
-		goto out;	//error case
+		goto enomem;	//error case
+
+	printf("BRK(addr: 0x%lx, mm->brk: 0x%lx): Finished mn_do_brk.\n", brk, mm->brk);
 
 set_brk:
 	if (brk <= mm->brk) {
 		// TODO: shrink brk should also free memory and cache entry
 
+        printf("SHOOP: sending remote unmap to CNs\n");
 		// should we multicase munmap while holding the lock?
 		tmp_req.tgid = tsk->tgid;
 		tmp_req.addr = newbrk;
 		tmp_req.len = oldbrk - newbrk;
 		for (int i = 0; i < MAX_NUMBER_COMPUTE_NODE + 1; ++i) {
-			if (i != nid && tsk->tgids[i]) {
+			if (i != nid && tsk->tgids[i])
 				send_remote_munmap_to_cn(&tmp_req, get_remote_thread_socket(i)->sk);
-			}
 		}
 
 		mm->brk = brk;
 
+        printf("SHOOP: mysterious cacheman things\n");
 		cacheman_run_lock();
 		unsigned long tmp_addr;
 		for (tmp_addr = newbrk; tmp_addr < oldbrk; tmp_addr += CACHELINE_MIN_SIZE)
-		{
         	try_clear_cache_dir_with_boundry(generate_full_addr(tsk->tgid, tmp_addr), oldbrk);
-   		}
 		cacheman_run_unlock();
 
     	printf("BRK-Cleared cache for [0x%lx - 0x%lx], len: %lx\n", newbrk, oldbrk, oldbrk - newbrk);
-		goto skip;
+		goto out;
 	} else {
 		mm->brk = brk;
 	}
 	// populate = newbrk > oldbrk && (mm->def_flags & VM_LOCKED) != 0;
 	// add cache line for brk, as did for mmap
+
 #ifdef CACHE_DIR_PRE_OPT
-	if (!IS_ERR_VALUE(newbrk))
-	{
-		unsigned long tmp_addr = oldbrk;
-		unsigned long len = newbrk - oldbrk;
-		int populated = 1;
+    printf("SHOOP: Entered cache_dir_pre_opt\n");
+	if (IS_ERR_VALUE(newbrk))
+         goto out;
+
+
+    /* ******************** */
+
+    unsigned long tmp_addr = oldbrk;
+    unsigned long len = newbrk - oldbrk;
+    int populated = 1;
 #ifndef CACHE_DIR_PRE_POP_IDLE
-		int state = CACHELINE_SHARED;
+    int state = CACHELINE_SHARED;
 #else
-		int state = CACHELINE_IDLE;
+    int state = CACHELINE_IDLE;
 #endif
 #ifdef CACHE_OWNERSHIP_OPT
-			state = CACHELINE_MODIFIED;
+    state = CACHELINE_MODIFIED;
 #endif
-		//pr_vma("start brk is: %lx\n", mm->start_brk);
-		// unsigned long len = get_pow_of_two_req_size(len);
+    //pr_vma("start brk is: %lx\n", mm->start_brk);
+    // unsigned long len = get_pow_of_two_req_size(len);
 
-		int recheck_free_entry_cnt = 0;
-		int num_entry_free;
-		int num_entry_needed = min(len, TEST_DEBUG_SIZE_LIMIT) / INITIAL_REGION_SIZE
-			+ (len - min(len, TEST_DEBUG_SIZE_LIMIT)) / CACHELINE_MAX_SIZE;
+    int recheck_free_entry_cnt = 0;
+    int num_entry_free;
+    int num_entry_needed = min(len, TEST_DEBUG_SIZE_LIMIT) / INITIAL_REGION_SIZE
+        + (len - min(len, TEST_DEBUG_SIZE_LIMIT)) / CACHELINE_MAX_SIZE;
 
 recheck_free_entry:
-		cacheman_run_lock();	// To prevent confliction with cache manager thread
-		// in case we run out of entry for merge
-		if ((num_entry_free = get_free_dir_cnt()) < DYN_CACHE_MIN_DIR_FOR_MMAP + num_entry_needed) {
-			cacheman_run_unlock();
-			if ((++recheck_free_entry_cnt) >= DYN_CACHE_MMAP_MAX_RETRY) {
-				printf("No enough entry: free[%d] need[%d]\n", num_entry_free, num_entry_needed);
-			} else {
-				printf("Low entry: free[%d] need[%d], wait...\n", num_entry_free, num_entry_needed);
-				usleep(DYN_CACHE_SLEEP_US_IF_NO_DIR);
-				goto recheck_free_entry;
-			}
-		}
+    printf("SHOOP: rechecking free entry\n");
+    cacheman_run_lock();	// To prevent confliction with cache manager thread
+                            // in case we run out of entry for merge
 
-		// prevent duplicate entries on mmap->munmap->mmap when entries are merged at boundry
-		tmp_addr = get_right_uncached_addr(tsk->tgid, oldbrk);
-		unsigned long end_addr = get_left_uncached_addr(tsk->tgid, oldbrk + min(len, TEST_DEBUG_SIZE_LIMIT), tmp_addr);
+    // prevent duplicate entries on mmap->munmap->mmap when entries are merged at boundry
+    tmp_addr = get_right_uncached_addr(tsk->tgid, oldbrk);
+    unsigned long end_addr = get_left_uncached_addr(tsk->tgid, oldbrk + min(len, TEST_DEBUG_SIZE_LIMIT), tmp_addr);
 
-		printf("BRK-Cachline Init: tgid: %d, pid: %d, addr: 0x%lx - 0x%lx, uncached_addr: 0x%lx - 0x%lx, vmflag: 0x%lx, flag: 0x%lx, file: %lu\n",
-			   (int)tsk->tgid, (int)tsk->pid, oldbrk, oldbrk + len, tmp_addr, end_addr,
-			   0L, 0L, 0L);
+    printf("BRK-Cachline Init: tgid: %d, pid: %d, addr: 0x%lx - 0x%lx, uncached_addr: 0x%lx - 0x%lx, vmflag: 0x%lx, flag: 0x%lx, file: %lu\n",
+            (int)tsk->tgid, (int)tsk->pid, oldbrk, oldbrk + len, tmp_addr, end_addr,
+            0L, 0L, 0L);
 
-		int i;
-    	unsigned long index, size;
-		for (; tmp_addr < end_addr; )
-		{
-			/*
-			//skip cache entries that overlap with the previous brk
-			if ((tmp_addr - mm->start_brk) / INITIAL_REGION_SIZE == 
-				(oldbrk - mm->start_brk) / INITIAL_REGION_SIZE) {
-				continue;
-			}
-			*/
-		    index = INITIAL_REGION_INDEX;
-      		size = INITIAL_REGION_SIZE;
-      		while ((tmp_addr % size) || (tmp_addr + size > end_addr)) {
-        		// index = get_smaller_cache_region_index(index);
-			index = REGION_SIZE_4KB;	// always use 4KB
-        		size = (1 << (index + REGION_SIZE_BASE));
-			}
+    int i;
+    unsigned long index, size;
+    for (; tmp_addr < end_addr; )
+    {
+        /*
+        //skip cache entries that overlap with the previous brk
+        if ((tmp_addr - mm->start_brk) / INITIAL_REGION_SIZE == 
+        (oldbrk - mm->start_brk) / INITIAL_REGION_SIZE) {
+        continue;
+        }
+        */
+        index = INITIAL_REGION_INDEX;
+        size = INITIAL_REGION_SIZE;
+        while ((tmp_addr % size) || (tmp_addr + size > end_addr)) {
+            // index = get_smaller_cache_region_index(index);
+            index = REGION_SIZE_4KB;	// always use 4KB
+            size = (1 << (index + REGION_SIZE_BASE));
+        }
 
-			if (!create_new_cache_dir(get_full_virtual_address(tsk->tgid, tmp_addr),
-									  state, nid, index))
-			{
-				printf("BRK-Cachline Init Err: tgid: %d, pid: %d, addr: 0x%lx - 0x%lx, vmflag: 0x%lx, flag: 0x%lx, file: %lu\n",
-					   (int)tsk->tgid, (int)tsk->pid, tmp_addr, tmp_addr + size,
-					   0L, 0L, 0L);
-				// It might be just duplicated entry
-				// populated = 0;
-				// break;
-			}
-			tmp_addr += size;
-		/*
-			printf("BRK-Cachline Init Success: tgid: %d, pid: %d, addr: 0x%lx - 0x%lx, vmflag: 0x%lx, flag: 0x%lx, file: %lu\n",
-					   (int)tsk->tgid, (int)tsk->pid, tmp_addr, tmp_addr + INITIAL_REGION_SIZE_EXEC_BRK,
-					   0L, 0L, 0L);
-		*/
-		}
-		// 2 MB regions for the remaining ranges
-		if (populated)	// no error
-		{
-			for (; tmp_addr <  oldbrk + len; tmp_addr += CACHELINE_MAX_SIZE)
-			{
-				if (!create_new_cache_dir(get_full_virtual_address(tsk->tgid, tmp_addr),
-										  state, nid, REGION_SIZE_2MB))
-				{
-					printf("BRK-Cachline Init Err: tgid: %d, pid: %d, addr: 0x%lx - 0x%lx, vmflag: 0x%lx, flag: 0x%lx, file: %lu\n",
-						(int)tsk->tgid, (int)tsk->pid, tmp_addr, tmp_addr + INITIAL_REGION_SIZE_EXEC_BRK,
-						0L, 0L, 0L);
-					// It might be just duplicated entry
-					// populated = 0;
-					// break;
-				}
-			}
-		}
-		cacheman_run_unlock();
+        if (!create_new_cache_dir(get_full_virtual_address(tsk->tgid, tmp_addr),
+                    state, nid, index))
+        {
+            printf("BRK-Cachline Init Err: tgid: %d, pid: %d, addr: 0x%lx - 0x%lx, vmflag: 0x%lx, flag: 0x%lx, file: %lu\n",
+                    (int)tsk->tgid, (int)tsk->pid, tmp_addr, tmp_addr + size,
+                    0L, 0L, 0L);
+            // It might be just duplicated entry
+            // populated = 0;
+            // break;
+        }
+        tmp_addr += size;
+    }
 
-		// if (populated)
-		{
-			//addr |= MMAP_CACHE_DIR_POPULATION_FLAG;
-			usleep(1000); //1 ms
-			// sleep(1); //DEBUG to ensure the time to update cache directory
-			barrier();
-		}
-	}
+
+    // 2 MB regions for the remaining ranges
+    if (populated)	// no error
+    {
+        for (; tmp_addr <  oldbrk + len; tmp_addr += CACHELINE_MAX_SIZE)
+        {
+            if (!create_new_cache_dir(get_full_virtual_address(tsk->tgid, tmp_addr),
+                        state, nid, REGION_SIZE_2MB))
+            {
+                printf("BRK-Cachline Init Err: tgid: %d, pid: %d, addr: 0x%lx - 0x%lx, vmflag: 0x%lx, flag: 0x%lx, file: %lu\n",
+                        (int)tsk->tgid, (int)tsk->pid, tmp_addr, tmp_addr + INITIAL_REGION_SIZE_EXEC_BRK,
+                        0L, 0L, 0L);
+                // It might be just duplicated entry
+                // populated = 0;
+                // break;
+            }
+        }
+    }
+    cacheman_run_unlock();
+
+    // if (populated)
+    {
+        //addr |= MMAP_CACHE_DIR_POPULATION_FLAG;
+        usleep(1000); //1 ms
+                      // sleep(1); //DEBUG to ensure the time to update cache directory
+        barrier();
+    }
 #endif
-skip:
+out:
 	sem_post(&mm->mmap_sem);
 	return brk;
-out:
+enomem:
 	sem_post(&mm->mmap_sem);
 	return -ENOMEM;
 }
@@ -649,3 +636,5 @@ int mn_push_data(u16 sender_id, u16 tgid, struct fault_data_struct* data_req){
 
 	return ret;
 }
+
+/* vim: set sw=4 ts=4 sts=4 expandtab */

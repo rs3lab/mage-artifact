@@ -7,3 +7,4 @@ compile_commands.json
 compile_commands.json.*
 .project-root
 .cache/
+**/__pycache__/

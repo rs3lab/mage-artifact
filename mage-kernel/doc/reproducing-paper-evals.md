@@ -54,18 +54,29 @@ read benchmark. Run
 `$MIND_ROOT/apps/sequential-read-latency-breakdown/run-benchmark.zsh`, and
 data will be generated in `$MIND_ROOT/apps/sequential-read-latency-breakdown`. 
 
+
 ### Page-Rank (GapBS) Benchmark
 
 *Estimated Time: 10m per data point*. 
 
-Run `$MIND_ROOT/apps/page-rank/run-benchmark.zsh`, and data will be generated
-in `$MIND_ROOT/apps/page-rank`. 
+This application requires a large Kroenecker graph dataset to traverse. 
+Please move this graph to `~/kron.sg` in the Compute Node VM. 
+
+**SOSP Evaluators: you can find this file on the VM host, in your home
+directory.** We don't include it in the VM image, because there's not much disk
+space in the VM. We want you to be able to test the prior steps, without
+running into "out of storage" issues.
+
+Once you have copied the file into the VM, run
+`$MIND_ROOT/apps/page-rank/run-benchmark.zsh`.
+Data will be generated in `$MIND_ROOT/apps/page-rank`. 
 
 ### XSBench Benchmark
 
-*Estimated Time: 5m per data point*. 
-TODO(yash): copy in the script info here. 
+*Estimated Time: 10m per data point*. 
 
+Run `$MIND_ROOT/apps/xsbench/run-benchmark.zsh`.
+Data will be generated in `$MIND_ROOT/apps/xsbench`. 
 
 
 ## Data Processing Phase

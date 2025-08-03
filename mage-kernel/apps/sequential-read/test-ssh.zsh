@@ -15,7 +15,6 @@ function set-params () {
 	local cn=$1
 	local bs=$2
 	local lmem_mib=$3
-
 	ssh $cn_control_sshname set-params 'test_mltthrd' $cn $bs $lmem_mib
 
 	manager cn allonly
@@ -45,7 +44,8 @@ function run-test () {
 # rebuild application
 local cn=4            # 4 eviction threads
 local bs=256          # 256 batch size
-local lmem_mib='1024' # 1 GiB DRAM Cache Size TODO(yash): confirm it's same.
+local lmem_mib='1024' # 1 GiB DRAM Cache Size TODO(yash): confirm this
+
 set-params $cn $bs $lmem_mib
 
 # Run the tests!
@@ -55,6 +55,6 @@ for fh in 1 2 4 8 16 32 40 48; do
 		continue
 	fi
 
-	run-test $cn $fh $bs
+	run-test $cn $fh $bs $lmem_mib
 	fetch-test-logs "cn$cn-fh$fh-bs$bs-lmem_mib$lmem_mib-logs"
 done

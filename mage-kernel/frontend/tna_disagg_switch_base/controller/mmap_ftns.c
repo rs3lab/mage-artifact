@@ -1716,6 +1716,7 @@ unacct_error:
  *  anonymous maps.  eventually we may be able to do some
  *  brk-specific accounting here.
  */
+// `flags` is always 0.
 int mn_do_brk_flags(struct task_struct *tsk, unsigned long addr,
 		unsigned long request, unsigned long flags)
 {
@@ -1780,7 +1781,7 @@ out:
 		mm->locked_vm += (len >> PAGE_SHIFT);
 	}
 
-	printf("BRK: tgid: %d, pid: %d, addr: 0x%lx, len: %lu, flag: 0x%lx\n",
+	printf("BRK (in progress): tgid: %d, pid: %d, addr: 0x%lx, len: %lu, flag: 0x%lx\n",
 		   (int)tsk->tgid, (int)tsk->pid, addr, len, flags);
 
 	return 0;

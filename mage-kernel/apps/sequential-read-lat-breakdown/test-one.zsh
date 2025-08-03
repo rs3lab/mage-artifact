@@ -8,7 +8,7 @@ if [[ -z $MIND_ROOT ]]; then
         exit 1
 fi
 source $MIND_ROOT/scripts/config.sh
-cd $MIND_ROOT/apps/sequential-read-latency-breakdown
+cd $MIND_ROOT/apps/sequential-read-lat-breakdown
 
 if [[ $# -ne 4 ]]; then 
 	echo 'args: cn, fh, bs, lmem_mib!'
@@ -36,7 +36,7 @@ chronic make
 
 echo "test-one: spawning test_mltthrd with $fh and $array_size bytes."
 nohup unbuffer \
-        ./bin/test_mltthrd $n_threads $array_size &> $output_log &
+        ./bin/test_mltthrd $fh $array_size &> $output_log &
 bench_pid=$!
 
 # PROGRAM WARMUP

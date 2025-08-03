@@ -14,7 +14,7 @@ function set-params () {
 	local bs=$2
 	local lmem_mib=$3
 
-	ssh $cn_control_sshname set-params $cn $bs $lmem_mib
+	ssh $cn_control_sshname set-params 'gapbs_pr' $cn $bs $lmem_mib
 
 	manager cn allonly
 	sleep 1s
@@ -33,7 +33,7 @@ function run-test () {
 
   # run test-one; time to start the application!
   ssh $cn_control_sshname zsh \
-  	'/home/sslee/rfbs/apps/gapbs/test-one.zsh' \
+  	'/home/sslee/rfbs/apps/page-rank/test-one.zsh' \
 	$cnthreads $fhthreads $bs $lmem_mib
 }
 

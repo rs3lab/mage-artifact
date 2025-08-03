@@ -36,7 +36,7 @@ chronic make
 
 echo "test-one: spawning test_mltthrd with $fh and $array_size bytes."
 nohup unbuffer \
-        ./bin/test_mltthrd $n_threads $array_size &> $output_log &
+        ./bin/test_mltthrd $fh $array_size &> $output_log &
 bench_pid=$!
 
 # PROGRAM WARMUP

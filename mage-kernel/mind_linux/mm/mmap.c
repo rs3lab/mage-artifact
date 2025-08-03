@@ -215,46 +215,45 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
 #ifdef CONFIG_COMPUTE_NODE
 	if (current->is_remote /*&& !current->is_mind_binary*/)
 	{
-		mn_retval = disagg_brk(current, brk);	// new brk address (not brk)
-		if (mn_retval > 0)	// not NULL
-		{
-			unsigned long flags = (VM_DATA_DEFAULT_FLAGS | VM_ACCOUNT | mm->def_flags) & ~(VM_READ | VM_WRITE | VM_EXEC);
-			struct rb_node **rb_link, *rb_parent;
-			struct vm_area_struct *prev;
+		unsigned long flags = (VM_DATA_DEFAULT_FLAGS | VM_ACCOUNT | mm->def_flags) & ~(VM_READ | VM_WRITE | VM_EXEC);
+		struct rb_node **rb_link, *rb_parent;
+		struct vm_area_struct *prev;
 
-			newbrk = PAGE_ALIGN(brk);
-			oldbrk = PAGE_ALIGN(mm->brk);
-			if (brk <= mm->brk)
+		mn_retval = disagg_brk(current, brk);	// new brk address (not brk)
+		if (mn_retval == 0) // NULL
+			 goto out;
+
+		newbrk = PAGE_ALIGN(brk);
+		oldbrk = PAGE_ALIGN(mm->brk);
+		if (brk <= mm->brk)
+		{
+			if (!do_munmap(mm, newbrk, oldbrk - newbrk, &uf))
 			{
-				if (!do_munmap(mm, newbrk, oldbrk - newbrk, &uf))
-				{
-					goto mn_set_brk;
-				}
+				goto mn_set_brk;
+			}
+			retval = -ENOMEM;
+			goto out;
+		}
+
+		// Remove previous mappings - it should not find any
+		while (find_vma_links(mm, oldbrk, newbrk, &prev, &rb_link, &rb_parent))
+		{
+			if (do_munmap(mm, oldbrk, newbrk - oldbrk, &uf))
+			{
 				retval = -ENOMEM;
 				goto out;
 			}
-
-			// Remove previous mappings - it should not find any
-			while (find_vma_links(mm, oldbrk, newbrk, &prev, &rb_link, &rb_parent))
-			{
-				if (do_munmap(mm, oldbrk, newbrk - oldbrk, &uf))
-				{
-					retval = -ENOMEM;
-					goto out;
-				}
-			}
-
-			if (newbrk <= oldbrk || IS_ERR_VALUE(mmap_dummy_region(mm, oldbrk, newbrk - oldbrk, flags)))
-			{
-				printk(KERN_DEFAULT "Cannot assign dummy region for brk 0x%lx - 0x%lx: skip for now\n",
-					   oldbrk, newbrk);
-			}
-mn_set_brk:
-			mm->brk = brk;
-			up_write(&mm->mmap_sem);
-			goto mn_brk;
 		}
-		goto out;
+
+		if (newbrk <= oldbrk || IS_ERR_VALUE(mmap_dummy_region(mm, oldbrk, newbrk - oldbrk, flags)))
+		{
+			printk(KERN_DEFAULT "Cannot assign dummy region for brk 0x%lx - 0x%lx: skip for now\n",
+					oldbrk, newbrk);
+		}
+mn_set_brk:
+		mm->brk = brk;
+		up_write(&mm->mmap_sem);
+		goto mn_brk;
 	}
 #endif
 

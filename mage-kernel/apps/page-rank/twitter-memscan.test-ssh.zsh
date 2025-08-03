@@ -13,7 +13,6 @@ function set-params () {
 	local cn=$1
 	local bs=$2
 	local lmem_mib=$3
-
 	ssh $cn_control_sshname set-params 'gapbs_pr' $cn $bs $lmem_mib
 
 	manager cn allonly

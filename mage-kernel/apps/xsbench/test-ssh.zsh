@@ -14,7 +14,7 @@ function set-params () {
 	local bs=$2
 	local lmem_mib=$3
 
-	ssh $cn_control_sshname set-params $cn $bs $lmem_mib
+	ssh $cn_control_sshname set-params 'XSBench' $cn $bs $lmem_mib
 
 	manager cn allonly
 	sleep 1s
@@ -32,6 +32,7 @@ function run-test () {
   sleep 5s
 
   # run test-one; time to start the application!
+  # TODO: Replace this hardcoded path with something based on $MIND_ROOT. 
   ssh $cn_control_sshname zsh \
   	'/home/sslee/rfbs/apps/xsbench/test-one.zsh' \
 	$cnthreads $fhthreads $bs $lmem_mib

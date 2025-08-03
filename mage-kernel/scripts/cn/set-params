@@ -23,6 +23,8 @@ local mem_mib=$4
 # CHOOSE THE PROGRAM TO RUN
 
 function set-config () {
+	local key=$1
+	local val=$2
         # No fundamental difference between this and ./set-param.
         # It just edits different config files we edit.
         sed -Ei "s/#define ${key}.*/#define ${key} ${val}/" \

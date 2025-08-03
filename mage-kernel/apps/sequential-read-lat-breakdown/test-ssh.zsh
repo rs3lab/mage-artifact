@@ -5,7 +5,7 @@ if [[ -z $MIND_ROOT ]]; then
         exit 1
 fi
 source $MIND_ROOT/scripts/config.sh
-cd $MIND_ROOT/apps/sequential-read-latency-breakdown
+cd $MIND_ROOT/apps/sequential-read-lat-breakdown
 
 echo "Execute this on the VM host only!"
 
@@ -55,6 +55,6 @@ for fh in 1 2 4 8 16 32 40 48; do
 		continue
 	fi
 
-	run-test $cn $fh $bs
+	run-test $cn $fh $bs $lmem_mib
 	fetch-test-logs "cn$cn-fh$fh-bs$bs-lmem_mib$lmem_mib-logs"
 done

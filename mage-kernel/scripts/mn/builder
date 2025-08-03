@@ -36,7 +36,7 @@ function synchronize_code () {
 function build_mem_server () {
 	echo "$HOST:mind_next: building mem server (no output=>success)"
 	show_latest_commit | tee build.log
-	chronic -e ./build-mem-server
+	chronic make &>> build.log
 }
 
 function indent () { 

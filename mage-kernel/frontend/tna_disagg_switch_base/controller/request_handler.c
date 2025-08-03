@@ -452,7 +452,7 @@ static int __handle_brk(struct mem_header *hdr, void *payload, struct brk_reply_
     // unsigned long prev_brk = tsk->mm->brk;
     addr = mn_do_brk(tsk, brk_req->addr, hdr->sender_id);
     if (IS_ERR_VALUE(addr)) {
-        printf("BRK_ERR, requested addr[%lx], but got \"addr\" [%ld]\n", brk_req->addr, addr);
+        printf("BRK_ERR, requested addr[%lx], but got \"error\" [%ld]\n", brk_req->addr, addr);
         addr = (unsigned long)NULL;
         ret = -1;
         goto out;

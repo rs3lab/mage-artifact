@@ -3,18 +3,10 @@
 
 // Configuration file for test
 
-// #define TEST_PROGRAM_NAME "test_mltthrd"
-// #define TEST_PROGRAM_DIGIT 12
-// #define TEST_PROGRAM_NAME "gapbs_pr"
-// #define TEST_PROGRAM_DIGIT 8
-//#define TEST_PROGRAM_NAME "wrmem"
-//#define TEST_PROGRAM_DIGIT 5
-//#define TEST_PROGRAM_NAME "XSBench"
-//#define TEST_PROGRAM_DIGIT 7
-//#define TEST_PROGRAM_NAME "web_frontend"
-//#define TEST_PROGRAM_DIGIT 12
-#define TEST_PROGRAM_NAME "memcached"
-#define TEST_PROGRAM_DIGIT 9
+// Don't write the names of the two macros below, even in comments. 
+// A hacky eval script uses `sed -i` on this file to choose program name. 
+#define TEST_PROGRAM_NAME "test_mltthrd"
+#define TEST_PROGRAM_DIGIT 12
 
 #define LAUNCHER_PROGRAM_NAME "launcher_thread"
 #define EXAMPLE_PROGRAM_NAME "exmp_mltthrd"
