@@ -48,6 +48,7 @@ function build_kernel () {
 		echo "$HOST: Build Kernel failed! Exit code $build_status" >/dev/stderr
 		exit "$build_status"
 	fi
+	( cd $MIND_ROOT/mind_linux/util_modules && make | tee -a build-kernel.log )
 }
 
 function build_modules () { 
@@ -58,6 +59,8 @@ function build_modules () {
 		echo "$HOST: Build Modules failed! Exit code $build_status" >/dev/stderr
 		exit "$build_status"
 	fi
+
+	( cd $MIND_ROOT/mind_linux/util_modules && make | tee -a build-kernel.log )
 }
 
 function build_roce () { 
