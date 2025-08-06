@@ -14,7 +14,7 @@ Many automated scripts will use this environment variable.
 So we recommend something like: 
 
 ```
-export MIND_ROOT="$HOME/mage/mage-linux"
+export MIND_ROOT="$HOME/mage/mage-kernel"
 ```
 
 in your shell init file (`~/.bashrc`, `~/.profile`, etc). 
