@@ -14,7 +14,7 @@ Evaluation proceeds in multiple phases, as per the SOSP Artifact Guidelines:
 
 ### Sequential Read Benchmark: Tput + Latency Only
 
-*Estimated Time: 6m per data point*. 
+*Estimated Runtime: 5m per data point => 40 minutes total*. 
 
 Run `$MIND_ROOT/apps/sequential-read/run-benchmark.zsh`, and data will be
 generated in `$MIND_ROOT/apps/sequential-read`. 
@@ -34,7 +34,7 @@ This benchmark collects throughput (event counts) and latency samples.
 
 ### Sequential Read Benchmark: Latency Breakdown Only
 
-*Estimated Time: 7m per data point*. 
+*Estimated Runtime: 5m per data point => 40 minutes total*. 
 
 *Please run this benchmark on the `sosp_ae_latency_breakdown` branch only!*
 All other benchmarks should be run on the default branch, as usual. 
@@ -85,8 +85,10 @@ Before starting this phase, please ensure that `pandas`, `numpy`, and
 `matplotlib` are installed on the VM Host. In addition to these Python 
 libraries, the [ansifilter](https://github.com/andre-simon/ansifilter/blob/master/INSTALL)
 program is needed to process dmesg results.
+
 We have included a script to install these dependencies in the host environment
-for you; SOSP evaluators will find them pre-installed on our test machines. 
+for you; SOSP evaluators will find them pre-installed on our test machines 
+(just run `conda activate base` to load them into your shell). 
 
 ### Figure 14a: Sequential Read Throughput
 
