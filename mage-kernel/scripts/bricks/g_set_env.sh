@@ -1,6 +1,7 @@
 # This script acts as a "config file" for the cluster setup.
 
 # MIND_ROOT should be set in zshrc anyways.
+export MIND_ROOT="${MIND_ROOT:-$HOME/mage-artifact/mage-kernel}"
 
 # CLUSTER SETUP
 cn_vm_name=FBS_client_yash
