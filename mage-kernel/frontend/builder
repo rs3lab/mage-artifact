@@ -4,7 +4,7 @@
 # installation. Don't confuse this with the script that manages
 # installations for the whole cluster.
 
-frontend_home=$HOME/mind-bench/mind_ctrl
+frontend_home=$MIND_ROOT/frontend/
 cd $frontend_home
 
 function run_command () { 
