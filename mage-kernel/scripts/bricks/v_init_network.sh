@@ -26,7 +26,7 @@ fi
 
 sudo ip link set $nic up 
 
-if [[ -n "$using_roce" ]]; then
+if [[ "$using_roce" = 'true' ]]; then
 	# NIC MTU should be larger than (page size + frame headers).
 	# RoCE only supports MTUs in powers of two. It'll choose the largest MTU less
 	# than the iface MTU.
