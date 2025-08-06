@@ -30,6 +30,7 @@ Mage
 We have already set up a ready environment on our RS3Lab server. Please use EPFL VPN to access it. For the evaluation of `Mage-LibOS`, `Mage-Kernel`, and `DiLOS` we use rs3labsrv4 as the client node and rs3labsrv5 as the memory node. For the evaluation of `Hermit` we use rs3labsrv5 as the client node and rs3labsrv4 as the server node. The reason of this setting is that this way eliminates the time spent on switching kernel between experiments.
 
 We will detailed info of EPFL VPN very soon.
+Please contact the authors for VPN credentials!
 
 ## Requirement
 ### Hardware
@@ -48,6 +49,13 @@ Check the `Installation` section in the `README.md` of `mage-libos` subdir
 Check the `Installation` section in the `README.md` of `mage-libos` subdir
 
 ## Evaluation:
+
+**SOSP Evaluators**: 
+Mage-LibOS requires packages to be installed on the host (we've installed these
+for you on the evaluation environment). These packages interfere with Mage-Linux; 
+so we recommend testing Mage-LibOS _first_, then running `sudo ofed_uninstall.sh`, 
+then the Mage-Linux evaluations. 
+
 ### Mage-LibOS
 Check the `Evaluation` section in the `README.md` of `mage-libos` subdir
 ### Mage-Kernel
