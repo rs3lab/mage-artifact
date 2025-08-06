@@ -33,9 +33,7 @@ function run-test () {
 
   # run test-one; time to start the application!
   # TODO(yash): shouldn't this use MIND_ROOT?
-  ssh $cn_control_sshname zsh \
-	'/home/sslee/rfbs/apps/sequential-read/test-one.zsh' \
-	$cnthreads $fhthreads $bs $lmem_mib
+  ssh $cn_control_sshname "zsh \$MIND_ROOT/apps/sequential-read/test-one.zsh $cnthreads $fhthreads $bs $lmem_mib"
 }
 
 

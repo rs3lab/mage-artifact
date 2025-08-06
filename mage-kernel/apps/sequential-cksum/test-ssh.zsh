@@ -36,9 +36,7 @@ function run-test () {
   sleep 5s
 
   # run test-one; time to start the application!
-  ssh $cn_control_sshname zsh \
-  	'/home/sslee/rfbs/apps/sequential-cksum/test-ssh-wrapper.zsh' \
-	$cnthreads $fhthreads $bs
+  ssh $cn_control_sshname "zsh \$MIND_ROOT/apps/sequential-cksum/test-ssh-wrapper.zsh $cnthreads $fhthreads $bs"
 }
 
 local bs=256

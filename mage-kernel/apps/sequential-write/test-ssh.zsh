@@ -36,9 +36,7 @@ function run-test () {
   ssh $cn_control_sshname disable-patr
 
   # run test-one; time to start the application!
-  ssh $cn_control_sshname zsh \
-  	'/home/sslee/rfbs/apps/sequential-write/test-ssh-wrapper.zsh' \
-	$cnthreads $fhthreads $bs
+  ssh $cn_control_sshname "zsh \$MIND_ROOT/apps/sequential-write/test-ssh-wrapper.zsh $cnthreads $fhthreads $bs"
 }
 
 local bs=256

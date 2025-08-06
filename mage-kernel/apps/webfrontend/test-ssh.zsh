@@ -32,9 +32,7 @@ function run-test () {
   sleep 5s
 
   # run test-one; time to start the application!
-  ssh $cn_control_sshname zsh \
-  	'/home/sslee/rfbs/apps/webfrontend/test-one.zsh' \
-	$cnthreads $fhthreads $bs $lmem_mib
+  ssh $cn_control_sshname "zsh \$MIND_ROOT/apps/webfrontend/test-one.zsh $cnthreads $fhthreads $bs $lmem_mib"
 }
 
 

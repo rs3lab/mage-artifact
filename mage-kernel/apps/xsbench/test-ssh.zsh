@@ -33,9 +33,7 @@ function run-test () {
 
   # run test-one; time to start the application!
   # TODO: Replace this hardcoded path with something based on $MIND_ROOT. 
-  ssh $cn_control_sshname zsh \
-  	'/home/sslee/rfbs/apps/xsbench/test-one.zsh' \
-	$cnthreads $fhthreads $bs $lmem_mib
+  ssh $cn_control_sshname "zsh \$MIND_ROOT/apps/xsbench/test-one.zsh $cnthreads $fhthreads $bs $lmem_mib"
 }
 
 local cn=4
