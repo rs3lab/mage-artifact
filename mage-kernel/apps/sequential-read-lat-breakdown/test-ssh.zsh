@@ -7,8 +7,6 @@ fi
 source $MIND_ROOT/scripts/config.sh
 cd $MIND_ROOT/apps/sequential-read-lat-breakdown
 
-echo "Execute this on the VM host only!"
-
 # HELPER FUNCTIONS
 
 function set-params () {
@@ -50,11 +48,11 @@ set-params $cn $bs $lmem_mib
 
 # Run the tests!
 
-for fh in 1 2 4 8 16 32 40 48; do
+for fh in 24 48; do
 	if (( fh + cn > 52 )); then
 		continue
 	fi
 
 	run-test $cn $fh $bs $lmem_mib
-	fetch-test-logs "cn$cn-fh$fh-bs$bs-lmem_mib$lmem_mib-logs"
+	fetch-test-logs "cn$cn-fh$fh-bs$bs-lmem_mib$lmem_mib-logs.1"
 done

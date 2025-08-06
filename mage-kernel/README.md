@@ -51,6 +51,4 @@ The installation procedure contains 5 steps:
 
 ## Running Programs
 
-After setting
-
 - [Reproducing Paper Evaluations](doc/reproducing-paper-evals.md)

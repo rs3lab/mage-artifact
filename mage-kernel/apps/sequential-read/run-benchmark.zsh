@@ -15,5 +15,3 @@ echo "Execute this on the VM host only!"
 # Compile Benchmark + Kernel, RUN THE TESTS
 echo "Running tests!"
 ./test-ssh.zsh
-
-# TODO: Parse the data

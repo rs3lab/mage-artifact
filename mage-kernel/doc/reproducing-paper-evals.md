@@ -81,4 +81,37 @@ Data will be generated in `$MIND_ROOT/apps/xsbench`.
 
 ## Data Processing Phase
 
-## Data Presentation Phase
+Before starting this phase, please ensure that `pandas`, `numpy`, and
+`matplotlib` are installed on the VM Host. In addition to these Python 
+libraries, the [ansifilter](https://github.com/andre-simon/ansifilter/blob/master/INSTALL)
+program is needed to process dmesg results.
+We have included a script to install these dependencies in the host environment
+for you; SOSP evaluators will find them pre-installed on our test machines. 
+
+### Figure 14a: Sequential Read Throughput
+
+Run `$MIND_ROOT/scripts/evals/fig-14a-seq_read-tput.py`. 
+The output will appear in `$MIND_ROOT/scripts/evals/csv/fig-14a-seq_read-tput.csv`. 
+A graph will appear in `$MIND_ROOT/scripts/evals/fig/fig-14a-seq_read-tput.csv`. 
+
+### Figure 14b: Sequential Read 99% Latency
+
+Run `$MIND_ROOT/scripts/evals/fig-14a-seq_read-lat.py`. 
+The output will appear in `$MIND_ROOT/scripts/evals/csv/fig-14a-seq_read-lat.csv`. 
+A graph will appear in `$MIND_ROOT/scripts/evals/fig/fig-14a-seq_read-lat.csv`. 
+
+NOTE: The Mage-Linux profiling points can only store 2048 samples at once. 
+This means that the benchmark must be run many times in order to gather enough
+samples (a very time consuming process). 
+Our helper script only runs the benchmarks once. 
+Its results are usually a good approximation of the graph shown in our SOSP paper. 
+Patient reviewers are welcome to re-run the script and collect more CSV samples; the results
+will converge to what we've shown in our paper. 
+
+### Figure 15: Sequential Read Latency Breakdown
+
+Run `$MIND_ROOT/scripts/evals/fig-15-lat-breakdown.py`. 
+The outputs will appear in `$MIND_ROOT/scripts/evals/csv/fig-15-lat-out.$NUM_THREADS-threads.csv`
+for 24 and 48 threads. 
+The corresponding graphs will appear in
+`$MIND_ROOT/scripts/evals/fig/fig-15-lat-out.$NUM_THREADS-threads.png`. 

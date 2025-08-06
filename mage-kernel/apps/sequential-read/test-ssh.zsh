@@ -56,5 +56,6 @@ for fh in 1 2 4 8 16 32 40 48; do
 	fi
 
 	run-test $cn $fh $bs $lmem_mib
-	fetch-test-logs "cn$cn-fh$fh-bs$bs-lmem_mib$lmem_mib-logs"
+	# the "1" suffix indicates "run 1". Needed for our output scripts. 
+	fetch-test-logs "cn$cn-fh$fh-bs$bs-lmem_mib$lmem_mib-logs.1"
 done

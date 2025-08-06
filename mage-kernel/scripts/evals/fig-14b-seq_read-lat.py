@@ -5,13 +5,17 @@ import sys
 import csv
 from pathlib import Path
 
+import pandas as pd
+import matplotlib.pyplot as plt
+
 from logbox import LogBox
 
 # ----------------
 # PARAMETERS
 # ----------------
 
-output_path = './out.csv'
+output_path = Path('./csv/fig-14a-seq_read-lat.csv')
+fig_path = Path('./fig/fig-14a-seq_read-lat.png')
 
 # ----------------
 # SCRIPT
@@ -56,7 +60,20 @@ for fh in [1, 2, 4, 8, 16, 32, 40, 48]:
     df = samples(fh)
     out.append((fh, df.quantile(0.99)))
 
+# write output to CSV
+print('Writing output CSV to', output_path)
 with open(output_path, mode='w', newline='') as f:
     writer = csv.writer(f)
     writer.writerow(('fhthreads', '99_latency'))
     writer.writerows(out)
+
+print('Writing output figure to', fig_path)
+plt.figure(figsize=(6, 4))
+df = pd.read_csv(output_path)
+plt.plot(df['fhthreads'], df['99_latency'], marker='o', linestyle='-')
+plt.xlabel('Application Threads')
+plt.ylabel('99% Latency (us)')
+plt.title('Sequential Read: 99% Latency vs Num App Threads')
+fig_path.parent.mkdir(parents=True, exist_ok=True)
+plt.savefig(fig_path)
+plt.close()

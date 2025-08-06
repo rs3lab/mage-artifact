@@ -24,7 +24,7 @@ class Scraper():
     def __del__(self):
         self.conn.close()
 
-    def scrape_log_files(self, base_dir: Path) -> None:
+    def scrape_log_files(self, base_dir: Path) -> int:
         """Load PP data and HW Data into internal SQL database"""
 
         process_dmesg_logs(base_dir)
@@ -32,8 +32,9 @@ class Scraper():
         num_scraped = self._scrape_pp_data(base_dir)
         if num_scraped == 0:
             print('No files detected to scrape!')
-            return
+            return 0
         self._scrape_hw_data(base_dir)
+        return num_scraped
 
     def _scrape_pp_data(self, base_dir: Path) -> int:
         """Scrape PP data from all log dirs under base_dir
@@ -43,23 +44,21 @@ class Scraper():
         summary_dfs = []
         sample_dfs = []
 
-        print("Collecting PP Data")
         for log_dir in (x for x in base_dir.rglob('*') if x.is_dir()):  
-            match = re.match(r'^cn(\d+)-bs(\d+)-lmem_mib(\d+)-logs.(\d+)$', log_dir.name)
+            match = re.match(r'^cn(\d+)-fh(\d+)-bs(\d+)-lmem_mib(\d+)-logs.(\d+)$', log_dir.name)
             if not match: 
                 continue
             cnthreads = int(match.group(1))
-            batch_size = int(match.group(2))
-            lmem_mib = int(match.group(3))
-            run = int(match.group(4))
-            
-            print(log_dir.name)
+            fhthreads = int(match.group(2))
+            batch_size = int(match.group(3))
+            lmem_mib = int(match.group(4))
+            run = int(match.group(5))
             
             for log_file in log_dir.iterdir(): 
                 match = re.match(r'post.(\d+).log', log_file.name)
                 if not match: 
                     continue
-                fhthreads = int(match.group(1))
+                assert int(match.group(1)) == fhthreads
 
                 summary_file = log_file.with_name(f"pp_summary.{log_file.stem}.csv")
                 sample_file = log_file.with_name(f"pp_samples.{log_file.stem}.csv")
@@ -101,7 +100,6 @@ class Scraper():
     def _scrape_hw_data(self, base_dir: Path) -> None:
         """Scrape HW NIC counter data from all log dirs under base_dir"""
 
-        print("Collecting HWCounter Data")
         data = []
         for log_dir in (x for x in base_dir.rglob('*') if x.is_dir()):  
             match = re.match(r'^cn(\d+)-bs(\d+)-lmem_mib(\d+)-logs.(\d+)$', log_dir.name)
@@ -167,8 +165,9 @@ class LogBox():
         self.scraper = Scraper()
         self.conn = self.scraper.conn
 
-    def scrape_log_files(self, base_dir: Path) -> None:
-        self.scraper.scrape_log_files(base_dir)
+    def scrape_log_files(self, base_dir: Path) -> int:
+        """Returns the number of log files scraped."""
+        return self.scraper.scrape_log_files(base_dir)
 
     def get(self, query: str):
         return pd.read_sql(query, self.conn)
