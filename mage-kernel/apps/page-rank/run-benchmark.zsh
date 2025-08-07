@@ -16,6 +16,6 @@ ssh $cn_control_sshname \
 
 # RUN THE TESTS
 echo "Running tests!"
-./twitter-memscan.test-ssh.zsh
+./kron-memscan.test-ssh.zsh
 
 # TODO: Parse the data
