@@ -48,5 +48,5 @@ for lmem_mib in $lmems_mib; do
 	fi
 
 	run-test $cn $fh $bs $lmem_mib
-	fetch-test-logs "cn$cn-fh$fh-bs$bs-lmem_mib$lmem_mib-logs"
+	fetch-test-logs "cn$cn-fh$fh-bs$bs-lmem_mib$lmem_mib-logs.1"
 done
