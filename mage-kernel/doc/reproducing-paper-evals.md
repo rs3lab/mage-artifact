@@ -60,12 +60,8 @@ data will be generated in `$MIND_ROOT/apps/sequential-read-latency-breakdown`.
 *Estimated Time: 10m per data point*. 
 
 This application requires a large Kroenecker graph dataset to traverse. 
-Please move this graph to `~/kron.sg` in the Compute Node VM. 
-
-**SOSP Evaluators: you can find this file on the VM host, in your home
-directory.** We don't include it in the VM image, because there's not much disk
-space in the VM. We want you to be able to test the prior steps, without
-running into "out of storage" issues.
+Please move this graph to `/scratch/kron.sg` in the Compute Node VM. 
+**SOSP Evaluators**: we have done this for you.
 
 Once you have copied the file into the VM, run
 `$MIND_ROOT/apps/page-rank/run-benchmark.zsh`.

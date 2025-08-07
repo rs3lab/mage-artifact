@@ -27,7 +27,7 @@ local graph_trial=1
 export OMP_NUM_THREADS=$fh
 
 #/usr/bin/time -v ./gapbs/gapbs_pr -f ~/twitter.sg -i1000 -t1e-4 -n$graph_trial |& tee $output_log
-/usr/bin/time -v ./gapbs/gapbs_pr -f ~/kron.sg -i1000 -t1e-4 -n$graph_trial |& tee $output_log
+/usr/bin/time -v ./gapbs/gapbs_pr -f /scratch/kron.sg -i1000 -t1e-4 -n$graph_trial |& tee $output_log
 
 generate-posttest-logs $cn $fh $bs $local_mem_mib
 
