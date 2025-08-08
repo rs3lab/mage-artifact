@@ -14,7 +14,7 @@ function set-params () {
 	local bs=$2
 	local lmem_mib=$3
 
-	ssh $cn_control_sshname set-params 'test_mltthrd' $cn $bs $lmem_mib
+	ssh $cn_control_sshname set-params 'test_mltthrd' $cn $bs $lmem_mib 0.5
 
 	manager cn allonly
 	sleep 1s
