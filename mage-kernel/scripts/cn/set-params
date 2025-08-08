@@ -18,7 +18,7 @@ local prg_name=$1
 local prg_digit=$(( $( echo $prg_name | wc -c ) - 1 ))
 local cn=$2
 local bs=$3
-local mem_mib=$4
+local lmem_mib=$4
 
 # CHOOSE THE PROGRAM TO RUN
 
@@ -42,12 +42,12 @@ set-config TEST_PROGRAM_DIGIT $prg_digit
 
 # SET DRAM CACHE PARAMETERS
 
-local mem_pages=$(( $mem_mib * 256 ))
-local dram_pages=$(( mem_pages * 10 / 9 ))
+local lmem_pages=$(( $lmem_mib * 256 ))
+#lmem_pages=$(( lmem_pages * 10 / 9 ))
 cma_size_pages=9961472
 
-if [[ $dram_pages -ge $cma_size_pages ]]; then
+if [[ $lmem_pages -ge $cma_size_pages ]]; then
         echo 'CMA Area too small for this memory size!' >/dev/stderr
         exit 1
 fi
-./set-param CNTHREAD_MAX_CACHE_BLOCK_NUMBER "${dram_pages}UL"
+./set-param CNTHREAD_MAX_CACHE_BLOCK_NUMBER "${lmem_pages}UL"
