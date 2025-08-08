@@ -14,7 +14,7 @@ function set-params () {
 	local bs=$2
 	local lmem_mib=$3
 
-	ssh $cn_control_sshname set-params 'XSBench' $cn $bs $lmem_mib
+	ssh $cn_control_sshname set-params 'XSBench' $cn $bs $lmem_mib 0.9
 
 	manager cn allonly
 	sleep 1s

@@ -47,7 +47,7 @@ profile points.
 To make the review process simpler, we created a new git branch with
 additional profile points placed throughout the codebase. No other changes
 have been made to Mage-Linux. You can verify this claim by running
-`git diff main sosp_ae_latency_breakdown`. 
+`git diff master sosp_ae_latency_breakdown`. 
 
 The benchmarking process is otherwise exactly the same as the prior sequential
 read benchmark. Run
@@ -74,7 +74,6 @@ Data will be generated in `$MIND_ROOT/apps/page-rank`.
 Run `$MIND_ROOT/apps/xsbench/run-benchmark.zsh`.
 Data will be generated in `$MIND_ROOT/apps/xsbench`. 
 
-
 ## Data Processing Phase
 
 Before starting this phase, please ensure that `pandas`, `numpy`, and
@@ -99,12 +98,15 @@ The output will appear in `$MIND_ROOT/scripts/evals/csv/fig-14a-seq_read-lat.csv
 A graph will appear in `$MIND_ROOT/scripts/evals/fig/fig-14a-seq_read-lat.csv`. 
 
 NOTE: The Mage-Linux profiling points can only store 2048 samples at once. 
-This means that the benchmark must be run many times in order to gather enough
-samples (a very time consuming process). 
-Our helper script only runs the benchmarks once. 
-Its results are usually a good approximation of the graph shown in our SOSP paper. 
-Patient reviewers are welcome to re-run the script and collect more CSV samples; the results
-will converge to what we've shown in our paper. 
+Since this benchmark collects 99% accuracy, it requires many samples to maintain
+accuracy; and hence many data-collection runs. 
+In order to keep the evaluation time minimal, our helper script only runs the benchmark once. 
+Its results are an approximation of the graphs in our SOSP paper. 
+
+Patient reviewers are welcome to re-run the benchmark and collect more CSV
+samples; the resulting graphs will converge to the values we've shown in our paper's figure. 
+If you're having difficulties with the test scripts during this process, please reach out to
+reach out to Yash Lala <yash.lala@yale.edu>. 
 
 ### Figure 15: Sequential Read Latency Breakdown
 
@@ -113,3 +115,15 @@ The outputs will appear in `$MIND_ROOT/scripts/evals/csv/fig-15-lat-out.$NUM_THR
 for 24 and 48 threads. 
 The corresponding graphs will appear in
 `$MIND_ROOT/scripts/evals/fig/fig-15-lat-out.$NUM_THREADS-threads.png`. 
+
+### Figure 9a: GapBS (Page-Rank) Throughput
+
+Run `$MIND_ROOT/scripts/evals/fig-9a-gapbs-tput.py`. 
+The outputs will appear in `$MIND_ROOT/scripts/evals/csv/fig-9a-gapbs-tput.csv`
+The corresponding graphs will appear in `$MIND_ROOT/scripts/evals/fig/fig-9a-gapbs-tput.png`. 
+
+### Figure 9b: XSBench Throughput
+
+Run `$MIND_ROOT/scripts/evals/fig-9b-xsbench-tput.py`. 
+The outputs will appear in `$MIND_ROOT/scripts/evals/csv/fig-9b-xsbench-tput.csv`
+The corresponding graphs will appear in `$MIND_ROOT/scripts/evals/fig/fig-9b-xsbench-tput.png`. 

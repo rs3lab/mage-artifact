@@ -17,8 +17,8 @@ from logbox import LogBox
 # PARAMETERS
 # ----------------
 
-csv_path = Path(f'./csv/fig-9a-xsbench-tput.csv')
-fig_path = Path(f'./fig/fig-9a-xsbench-tput.png')
+csv_path = Path(f'./csv/fig-9b-xsbench-tput.csv')
+fig_path = Path(f'./fig/fig-9b-xsbench-tput.png')
 data_path = Path()
 
 # ----------------
@@ -59,7 +59,7 @@ def scrape_xsbench_data(conn: sql.Connection, base_dir: Path) -> int:
                         continue
                     fields = line.strip().split()
                     assert len(fields) == 3
-                    avg_time = float(fields[2])
+                    avg_time = float(fields[1])
             
             assert avg_time is not None
 
