@@ -13,7 +13,7 @@ function set-params () {
 	local cn=$1
 	local bs=$2
 	local lmem_mib=$3
-	ssh $cn_control_sshname set-params 'gapbs_pr' $cn $bs $lmem_mib
+	ssh $cn_control_sshname set-params 'gapbs_pr' $cn $bs $lmem_mib 0.9
 
 	manager cn allonly
 	sleep 1s
@@ -39,7 +39,8 @@ local cn=4
 local fh=48
 local bs=256
 
-local lmems_mib=(22000 19800 17600 15400 13200 11000 8800 6600 4400 2200)
+#local lmems_mib=(22000 19800 17600 15400 13200 11000 8800 6600 4400 2200)
+local lmems_mib=(22000 11000 2200)
 for lmem_mib in $lmems_mib; do 
 	set-params $cn $bs $lmem_mib
 
