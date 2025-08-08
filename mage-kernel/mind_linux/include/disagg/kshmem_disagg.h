@@ -15,7 +15,7 @@
 struct kshmem_msg_struct
 {
     unsigned int serv_id;
-	unsigned long size;
+    unsigned long size;
 } __packed;
 
 struct kshmem_reply_struct
@@ -28,7 +28,7 @@ struct kshmem_va_msg_struct
 {
     unsigned int serv_id;
     unsigned long addr;
-	unsigned long size;
+    unsigned long size;
     unsigned int reserved[5];
 } __packed;
 

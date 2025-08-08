@@ -49,7 +49,7 @@ int get_container_node_id(int idx) {
 
 int choose_new_thread_node_id(int sender_id, char *name, int ref_cnt)
 {
-    if (strcmp(name, TEST_PROGRAM_NAME) == 0 || strcmp(name, LAUNCHER_PROGRAM_NAME) == 0) {
+    if (strcmp(name, TEST_PROGRAM_NAME) == 0) {
 #ifdef ROCKSDB_POLICY
         if (ref_cnt < ROCKSDB_NUM_INIT_THREADS || num_container_nodes <= 0)
             return sender_id;

@@ -540,18 +540,12 @@ static inline bool is_migrate_highatomic_page(struct page *page)
 void setup_zone_pageset(struct zone *zone);
 
 /* functions for disaggregation */
-unsigned long do_disagg_mmap(struct task_struct *tsk,
-            unsigned long addr, unsigned long len, unsigned long prot,
-			unsigned long flags, vm_flags_t vm_flags, unsigned long pgoff,
-			struct file *file);
-unsigned long do_disagg_mmap_owner(struct task_struct *tsk,
-            unsigned long addr, unsigned long len, unsigned long prot,
-			unsigned long flags, vm_flags_t vm_flags, unsigned long pgoff,
-			struct file *file, int *ownership, int writable_file_map);
+int mmap_disagg__init_rmem(struct task_struct *tsk, unsigned long addr, unsigned long len,
+		unsigned long pgoff, struct file *file, bool is_writable_file_map);
 
 unsigned long disagg_brk(struct task_struct *tsk, unsigned long brk);
 
-int disagg_munmap(struct task_struct *tsk, unsigned long start, size_t len);
+int mmap_disagg__free_rmem(struct task_struct *tsk, unsigned long start, size_t len);
 
 unsigned long disagg_mremap(struct task_struct *tsk, 
 			unsigned long addr, unsigned long old_len,

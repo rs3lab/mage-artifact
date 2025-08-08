@@ -22,7 +22,7 @@ struct cnmap_entry {
 	u64 va; // aka "addr"
 	u64 mn_va; // aka "mind addr"
 	u64 size;
-	uint16_t tgid;
+	uint16_t tgid; // TODO: use this field when looking up entries...
 	struct rb_node rb;
 	u64 __last; // used in rbtree
 	struct list_head list;
@@ -49,6 +49,28 @@ static LIST_HEAD(cnmap_table);
 static size_t cnmap_table_size;
 // For quick lookup.
 struct rb_root_cached cnmap_rb_root = RB_ROOT_CACHED;
+
+void add_one_cnmap(struct mind_map_msg *map)
+{
+	struct cnmap_entry *new;
+	if (!map->valid)
+		 return;
+
+	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	BUG_ON(!new);
+	new->va = map->va;
+	new->mn_va = map->mn_va;
+	new->size = map->size;
+	new->tgid = map->tgid;
+
+	write_lock(&cnmap_table_lock);
+
+	list_add(&new->list, &cnmap_table);
+	cnmap_rb_insert(new, &cnmap_rb_root);
+	cnmap_table_size++;
+
+	write_unlock(&cnmap_table_lock);
+}
 
 // This function may sleep.
 void set_cnmaps(struct mind_map_msg *maps, size_t size)
@@ -100,11 +122,6 @@ void set_cnmaps(struct mind_map_msg *maps, size_t size)
 		cnmap_table_size++;
 	}
 
-	if (cnmap_table_size == 0) {
-		pr_warn("WARNING: reset cnmaps to size zero!\n");
-		dump_stack();
-	}
-
 	write_unlock(&cnmap_table_lock);
 
 	// If we preallocated too many entries, free them.
@@ -124,6 +141,16 @@ void read_unlock_cnmap_table(void)
 	read_unlock(&cnmap_table_lock);
 }
 
+void write_lock_cnmap_table(void)
+{
+	write_lock(&cnmap_table_lock);
+}
+
+void write_unlock_cnmap_table(void)
+{
+	write_unlock(&cnmap_table_lock);
+}
+
 // The compiler complains when cnmap_rb_iter_next isn't used :P
 static void __maybe_unused __dummy_call_cnmap_rb_iter_next(void)
 {
@@ -134,6 +161,10 @@ static void __maybe_unused __dummy_call_cnmap_rb_iter_next(void)
 
 // Translate the virtual address (provided) to an RDMAable address.
 // The CN will use this to RDMA request the MN directly.
+//
+// This function returns 0 on error.
+//
+// The caller must hold cnmap_table_lock; try calling `read_lock_cnmap_table` first!
 uint64_t __get_cnmapped_addr(unsigned long addr)
 {
 	struct cnmap_entry *entry = NULL;
@@ -141,11 +172,10 @@ uint64_t __get_cnmapped_addr(unsigned long addr)
 	BUILD_BUG_ON(sizeof(unsigned long) != sizeof(uint64_t));
 
 	// Theoretically, there should be only one RB tree entry with this mapping.
+	// TODO: implement TGID segregation.
 	entry = cnmap_rb_iter_first(&cnmap_rb_root, addr, last_addr);
-	if (unlikely(!entry)) {
-		pr_err("cnmap: invalid address translation 0x%lx!\n", addr);
-		BUG();
-	}
+	if (unlikely(!entry)) // Invalid translation!
+		return 0;
 
 	// MN-specific base address offset is handled by the RoCE module.
 	return entry->mn_va + (addr - entry->va);
@@ -153,6 +183,8 @@ uint64_t __get_cnmapped_addr(unsigned long addr)
 
 // Translate the virtual address (provided) to an RDMAable address.
 // The CN will use this to RDMA request the MN directly.
+//
+// This function returns 0 on error.
 uint64_t get_cnmapped_addr(unsigned long addr)
 {
 	uint64_t ret;
@@ -166,18 +198,19 @@ uint64_t get_cnmapped_addr(unsigned long addr)
 void print_cnmaps(void)
 {
 	size_t i = 0;
-	struct cnmap_table_entry *entry;
+	struct cnmap_entry *entry;
 
-	read_lock(&cnmap_tree_lock);
+	read_lock(&cnmap_table_lock);
 
 	pr_info("cnmap: Printing current cnmap table (size %zu):\n", cnmap_table_size);
 	list_for_each_entry(entry, &cnmap_table, list) {
-		pr_info("\tcnmap[%zu]: va=0x%llx, mn_va=0x%llx, size=%llu, tgid=0x%u\n",
-				i, entry->va, entry->mn_va, entry->size, entry->tgid);
+		pr_info("cnmap:\t(0x%llx - 0x%llx)->\t(0x%llx - 0x%llx) size=0x%llx\n",
+				entry->va, entry->va + entry->size,
+				entry->mn_va, entry->mn_va + entry->size, entry->size);
 		i++;
 	}
 
-	read_unlock(&cnmap_tree_lock);
+	read_unlock(&cnmap_table_lock);
 }
 #else
 void print_cnmaps(void) {}

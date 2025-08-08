@@ -317,6 +317,9 @@ int send_msg_to_memory(u32 msg_type, void *payload, u32 len_payload,
 inline unsigned long map_page_for_dma(void *addr);
 inline unsigned long map_region_for_dma(void *addr, unsigned long size);
 
+// Zero-init a local memory region. This function takes cn_va addresses as input.
+int zero_rmem_region(struct task_struct *tsk, u64 addr, size_t len);
+
 /* TCP based functions */
 // Default TCP based implementation
 u32 get_controller_ip(void);

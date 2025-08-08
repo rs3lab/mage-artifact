@@ -3391,18 +3391,6 @@ static int do_anonymous_page(struct vm_fault *vmf)
 setpte:
 	set_pte_at(vma->vm_mm, vmf->address, vmf->pte, entry);
 
-#ifdef CONFIG_COMPUTE_NODE
-	if (current->is_remote)
-	{
-		// DEBUG_print_vma(mm);
-		// printk(KERN_DEFAULT "CN - fault handler: anonymous - addr: 0x%lx, pfn: 0x%lx, pte_flg: 0x%lx, vm_flg: 0x%lx\n",
-		// 		(unsigned long)vmf->address, 
-		// 		((((unsigned long int)entry.pte) >> PAGE_SHIFT) & 0xffffff),
-		// 		((unsigned long)pte_flags(entry) & 0xfff),
-		// 		vma->vm_page_prot);
-	}
-#endif
-
 	/* No need to invalidate - it was non-present before */
 	update_mmu_cache(vma, vmf->address, vmf->pte);
 unlock:

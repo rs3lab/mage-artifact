@@ -1097,7 +1097,7 @@ int init_rdma_conn_to_mn(int num_cnqps, int num_fhqps)
 	rdma_state->num_cncqs = num_cnqps;
 	rdma_state->num_fhcqs = num_fhqps;
 
-	rdma_state->mem_server_mem_size = MIND_RDMA_RMEM_SIZE_MIB << 20; // convert MiB to bytes
+	rdma_state->mem_server_mem_size = MIND_RMEM_SIZE_MIB << 20; // convert MiB to bytes
 	rdma_state->mem_server_ip = mn_server_ip;
 	ret = kstrtou32(mn_server_port_start, 10, &rdma_state->mem_server_port_start);
 	if (ret) {

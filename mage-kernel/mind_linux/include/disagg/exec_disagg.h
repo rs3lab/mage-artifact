@@ -30,11 +30,9 @@ struct exec_vmainfo {
 } __packed;
 
 struct exec_msg_struct {
-	u32	pid;
-	u32	tgid;
-	u32 pid_ns_id;
-	// __u32	parent_tgid;
-	// __u32	clone_flags;
+	u32	pid;       // Kernel "PID"; each thread has different PID.
+	u32	tgid;      // Userspace "PID"; refers to all threads in this mm_struct.
+	u32     pid_ns_id; // PIDs are per-namespace.
 	char	comm[TASK_COMM_LEN];
 
 	// mm related params
@@ -61,7 +59,7 @@ struct exec_msg_struct {
 struct exec_reply_struct {
 	int			ret;		// error code
 	u32			vma_count;	// number of copied vma
-    struct mind_map_msg maps[MAX_MAPS_IN_REPLY];
+	struct mind_map_msg maps[MAX_MAPS_IN_REPLY];
 } __packed;
 
 #define CN_SWITCH_REG_SYNC_NONE	0
@@ -69,19 +67,16 @@ struct exec_reply_struct {
 #define CN_SWITCH_REG_SYNC_PULL 2
 #define CN_SWITCH_RST_ON_UPDATE 7	// reset on-going flag of cache directory entry
 
-enum{
+enum {
 	CN_ONLY_DATA = 0,
 	CN_OTHER_PAGE = 2,
 };
 
 #ifdef CONFIG_COMPUTE_NODE
-int copy_vma_to_mn(struct task_struct *tsk, u32 msg_type);
-int cn_copy_vma_data_to_mn(struct task_struct *tsk, struct vm_area_struct *vma, 
+int copy_vma_page_to_rmem(struct task_struct *tsk, struct vm_area_struct *vma, 
 		unsigned long start_addr, unsigned long end_addr, off_t off_in_vma);
 int cn_copy_page_data_to_mn(u16 tgid, struct mm_struct *mm, unsigned long addr, pte_t *pte,
-							int is_target_data, u32 req_qp, void *dma_addr);
-//int cn_copy_page_data_to_mn_from_file(u16 tgid, struct vm_area_struct *vma, unsigned long addr);
-int count_vm_field(struct task_struct *tsk);
+		int is_target_data, u32 req_qp, void *dma_addr);
 
 #endif /* CONFIG_COMPUTE_NODE */
 #endif /* __EXEC_DISAGGREGATION_H__ */

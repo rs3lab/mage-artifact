@@ -281,7 +281,8 @@ void *tcp_connection_handler(void *data)
 		// end_debug(1, &t_debug_st[0], &t_debug_end[0]);
 
 		switch (incoming_msg_header->opcode) {
-		case DISAGG_FORK:
+		case DISAGG_FORK: // yash: unused code, compute blade won't send.
+			pr_info("SHOOP: DISAGG_FORK");
 			// pr_info("Fork here 0\n");
 			if (ret >= (int)(sizeof(*incoming_msg_header) + sizeof(struct fork_msg_struct)))
 			{
@@ -296,8 +297,8 @@ void *tcp_connection_handler(void *data)
 			}
 			break;
 
-		// TODO(yash): Didn't send mmaps back for this one.
-		case DISAGG_CONN_USAGE_REMOTE_FORK:
+		case DISAGG_CONN_USAGE_REMOTE_FORK: // yash: unused code, compute blade won't send.
+			pr_info("SHOOP: DISAGG_CONN_USAGE_REMOTE_FORK");
 			if (ret >= (int)(sizeof(*incoming_msg_header)))
 			{
 				pr_info("Handler: received REMOTE_FORK! (%d bytes)...\n", ret);
@@ -318,7 +319,8 @@ void *tcp_connection_handler(void *data)
 			goto end;
 			break;
 
-		case DISAGG_EXEC:
+		case DISAGG_EXEC: // yash: unused code, compute blade won't send.
+			pr_info("SHOOP: DISAGG_EXEC");
 			if (ret >= (int)(sizeof(*incoming_msg_header) + sizeof(struct exec_msg_struct)))
 			{
 				// TODO: Apply the same 'check and receive more' scheme for all the other buf
@@ -356,8 +358,8 @@ void *tcp_connection_handler(void *data)
 			break;
 
 			// Exit message
-		// TODO(yash): Didn't send mmaps back for this one.
-		case DISAGG_EXIT:
+		case DISAGG_EXIT: // TODO(yash): handle this...
+			pr_info("SHOOP: DISAGG_EXIT");
 			if (ret >= (int)(sizeof(*incoming_msg_header) + sizeof(struct exit_msg_struct)))
 			{
 				pr_info("Handler: Received EXIT! (%d bytes)\n", ret);
@@ -371,6 +373,7 @@ void *tcp_connection_handler(void *data)
 			break;
 
 		case DISAGG_NEW_TGID:
+			pr_info("SHOOP: DISAGG_NEW_TGID");
 			if (ret >= (int)(sizeof(*incoming_msg_header) + sizeof(struct tgid_msg_struct)))
 			{
 				pr_info("New TGID: received %d\n", ret);
@@ -386,6 +389,7 @@ void *tcp_connection_handler(void *data)
 			break;
 
 		case DISAGG_NEW_PID_NS:
+			pr_info("SHOOP: DISAGG_NEW_PID_NS");
 			if (ret >= (int)(sizeof(*incoming_msg_header) + sizeof(struct pid_ns_msg_struct)))
 			{
 				pr_info("New PID NS: received %d\n", ret);
@@ -401,6 +405,7 @@ void *tcp_connection_handler(void *data)
 			break;
 
 		case DISAGG_GET_TGID_IN_NS:
+			pr_info("SHOOP: DISAGG_GET_TGID_IN_NS");
 			if (ret >= (int)(sizeof(*incoming_msg_header) + sizeof(struct get_tgid_ns_msg_struct)))
 			{
 				pr_info("Get TGID in NS: received %d\n", ret);
@@ -415,8 +420,8 @@ void *tcp_connection_handler(void *data)
 			// goto end;
 			break;
 
-			// ALLOCATION - mmap
-		case DISAGG_MMAP:
+		case DISAGG_MMAP: // yash: dead code, never sent
+			pr_info("SHOOP: DISAGG_MMAP");
 			if (ret >= (int)(sizeof(*incoming_msg_header) + sizeof(struct mmap_msg_struct)))
 			{
 				pr_info("Handler: Received MMAP! (%d bytes)\n", ret);
@@ -430,8 +435,8 @@ void *tcp_connection_handler(void *data)
 			}
 			break;
 
-			// ALLOCATION - brk
-		case DISAGG_BRK:
+		case DISAGG_BRK: // yash: dead code, never sent
+			pr_info("SHOOP: DISAGG_BRK");
 			if (ret >= (int)(sizeof(*incoming_msg_header) + sizeof(struct brk_msg_struct)))
 			{
 				pr_info("Handler: Received BRK! (%d bytes)\n", ret);
@@ -446,7 +451,8 @@ void *tcp_connection_handler(void *data)
 			break;
 
 			// MUNMAP
-		case DISAGG_MUNMAP:
+		case DISAGG_MUNMAP: // yash: dead code, never sent
+			pr_info("SHOOP: DISAGG_MUNMAP");
 			if (ret >= (int)(sizeof(*incoming_msg_header) + sizeof(struct munmap_msg_struct)))
 			{
 				pr_info("Handler: Received MUNMAP! (%d bytes)\n", ret);
@@ -461,7 +467,8 @@ void *tcp_connection_handler(void *data)
 			break;
 
 			// MREMAP
-		case DISAGG_MREMAP:
+		case DISAGG_MREMAP: // yash: TODO implement this
+			pr_info("SHOOP: DISAGG_MREMAP");
 			if (ret >= (int)(sizeof(*incoming_msg_header) + sizeof(struct mremap_msg_struct)))
 			{
 				pr_info("Handler: Received MREMAP! (%d bytes)\n", ret);
@@ -478,6 +485,7 @@ void *tcp_connection_handler(void *data)
 			// RDMA: New nodes send this message to tell the controller abt
 			// their rdma parameters (rkey, MR size, base address, etc).
 		case DISAGG_RDMA:
+			pr_info("SHOOP: DISAGG_RDMA");
 			if (ret >= (int)(sizeof(*incoming_msg_header)))
 			{
 				int recv = ret;
@@ -532,6 +540,7 @@ void *tcp_connection_handler(void *data)
 		// TODO(yash): Didn't send mmaps back for this one.
 		case DISAGG_KSHMEM_ALLOC:
 		case DISAGG_KSHMEM_BASE_ADDR:	// sharing the same request/reponse type
+			pr_info("SHOOP: DISAGG_KSHMEM_*");
 			if (ret >= (int)(sizeof(*incoming_msg_header)))
 			{
 				int recv = ret;
@@ -570,6 +579,7 @@ void *tcp_connection_handler(void *data)
 
 		// TODO(yash): Didn't send mmaps back for this one.
 		case DISAGG_KSHMEM_ALLOC_VA:
+			pr_info("SHOOP: DISAGG_KSHMEM_ALLOC_VA*");
 			if (ret >= (int)(sizeof(*incoming_msg_header)))
 			{
 				int recv = ret;

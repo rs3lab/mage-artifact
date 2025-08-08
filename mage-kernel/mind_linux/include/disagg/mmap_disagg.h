@@ -62,7 +62,7 @@ struct munmap_msg_struct {
 	u32	tgid;
 	u32 pid_ns_id;
 	unsigned long addr;
-    unsigned long len;
+	unsigned long len;
 } __packed;
 
 struct munmap_reply_struct {
@@ -75,15 +75,16 @@ struct mremap_msg_struct {
 	u32	tgid;
 	u32 pid_ns_id;
 	unsigned long addr;
-    unsigned long old_len;
-    unsigned long new_len;
-    unsigned long flags;
-    unsigned long new_addr;
+	unsigned long old_len;
+	unsigned long new_len;
+	unsigned long flags;
+	unsigned long new_addr;
 } __packed;
 
 struct mremap_reply_struct {
 	int			  ret;		// error code
-    unsigned long new_addr;
-    struct mind_map_msg maps[MAX_MAPS_IN_REPLY];
+	unsigned long             new_addr;
+	struct mind_map_msg maps[MAX_MAPS_IN_REPLY];
 } __packed;
+
 #endif /* __MMAP_DISAGGREGATION_H__ */

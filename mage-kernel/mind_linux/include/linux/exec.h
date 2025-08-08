@@ -48,8 +48,10 @@
 #include <asm/tlb.h>
 
 #ifdef CONFIG_COMPUTE_NODE
-int cn_notify_exec(struct task_struct *tsk);
-int cn_notify_fork(struct task_struct *tsk);
+// Core disagg functions
+int disagg_exec(struct task_struct *tsk);
+// Helper functions
+void send_vma_data_to_rmem(struct task_struct *tsk);
 void disagg_print_va_layout(struct mm_struct *mm);
 #endif /* CONFIG_COMPUTE_NODE */
 

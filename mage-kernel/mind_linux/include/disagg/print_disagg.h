@@ -8,7 +8,8 @@
 // #define PRINT_DUMMY_RDMA
 // #define PRINT_PAGE_FAULT
 // #define PRINT_CNTHREAD_RECLAIM
-// #define PRINT_MAPS
+// #define PRINT_RMEM_ALLOC
+#define PRINT_MAPS
 // #define PRINT_LOCKS
 #define PRINT_SYSCALLS
 // #define PRINT_SWITCH_STATUS
@@ -67,6 +68,15 @@
 #define pr_yash(...) printk(KERN_DEFAULT __VA_ARGS__)
 #else
 #define pr_yash(...) \
+    do                  \
+    {                   \
+    } while (0)
+
+#endif
+#ifdef PRINT_RMEM_ALLOC
+#define pr_rmem_alloc(...) printk(KERN_DEFAULT __VA_ARGS__)
+#else
+#define pr_rmem_alloc(...) \
     do                  \
     {                   \
     } while (0)

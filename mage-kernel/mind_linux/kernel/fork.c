@@ -30,6 +30,7 @@ static int disagg_fork(unsigned long clone_flags, struct task_struct *tsk)
 #include <disagg/network_disagg.h>
 #include <disagg/pid_ns_disagg.h>
 #include <disagg/print_disagg.h>
+#include <disagg/cpu_alloc_disagg.h>
 #endif /* CONFIG_COMPUTE_NODE */
 #include <disagg/print_disagg.h>
 
@@ -1507,40 +1508,7 @@ static inline void rcu_copy_process(struct task_struct *p)
 	p->rcu_tasks_idle_cpu = -1;
 #endif /* #ifdef CONFIG_TASKS_RCU */
 }
-#ifdef CONFIG_COMPUTE_NODE
-loff_t get_file_mappings_and_alloc_fork_msg(struct fork_msg_struct **fork_msg,
-        struct task_struct *p) {
-      size_t num_file_mappings = count_read_only_file_mappings(p);
 
-      //allocate fork_msg and fill the fields about file mappings
-      size_t tot_size = sizeof(struct fork_msg_struct) +
-          sizeof(struct file_mapping_info) * (num_file_mappings - 1);
-      *fork_msg = kmalloc(tot_size, GFP_KERNEL);
-      if (!*fork_msg) {
-          pr_err("can not allocate fork_msg\n");
-          return -ENOMEM;
-      }
-      (*fork_msg)->num_file_mappings = num_file_mappings;
-      //print it
-      // pr_info("%s has %lu read-only file mappings\n", current->comm, num_file_mappings);
-
-      //fill fork_msg
-      return fill_fork_msg_mappings(*fork_msg, p);
-  }
-
-void dummy_debug_multithread(struct task_struct *p) {
-	struct fork_msg_struct *payload = NULL;
-	static bool start_print_fork_msg = 0;
-	if (strcmp(current->comm, "a.out") == 0) {
-		start_print_fork_msg = 1;
-	}
-	if (start_print_fork_msg) {
-		get_file_mappings_and_alloc_fork_msg(&payload, p);
-		fill_fork_msg_hwcontext(payload, p);
-		//add_one_fork_req(payload, 1);
-	}
-}
-#endif
 /*
  * This creates a new process as a copy of the old one,
  * but does not actually start it yet.
@@ -1659,7 +1627,6 @@ static __latent_entropy struct task_struct *copy_process(
 		p->is_mind_binary = 0;
 	}
 
-	p->run_on_other_node = 0;
 	p->qp_handle = NULL;
 
 	/*
@@ -1984,16 +1951,11 @@ static __latent_entropy struct task_struct *copy_process(
 	trace_task_newtask(p, clone_flags);
 	uprobe_copy_process(p, clone_flags);
 
-#ifdef CONFIG_COMPUTE_NODE
-    //a dummy test for get_file_mappings_and_alloc_fork_msg****************************
-    //TODO remote me
-    //dummy_debug_multithread(p);
-    //*********************************************************************************
-    
 	// We should do this after we get new pid
 	/* notify fork to remote memory */
 	if (p->is_remote){
 		struct mm_struct *mm;
+		int core;
 
 		// WARNING(yash): The whole disagg_fork operation used to be
 		// under `task_struct->alloc_lock`. This caused big problems
@@ -2003,22 +1965,25 @@ static __latent_entropy struct task_struct *copy_process(
 		//
 		// For now I'll just do a `mmget()` and `mmput()` to prevent
 		// the MM from shifting around while we do things. Hopefully
-		// it'll be fine (because we haven't started this task_struct
-		// yet, we should be the only users???).
+		// it'll be fine 
 		mm = get_task_mm(p);
 		WARN_ON(!mm);
 
-		// spin_lock(&p->alloc_lock); // big problem
-		disagg_fork(clone_flags, p);
-		pr_syscall(KERN_DEFAULT "FORK (copy_mm): %s (uid:%u -> %u)\n",
-				current->comm, current->cred->uid.val, p->cred->uid.val);
+		// We don't need to initialize any VMAs' memory here.
+		// Since we only support calling `fork` from already-disagg process (=> `fork` is
+		// for UNIX threads not UNIX procceses), we know that our new process shares all
+		// VMAs with the parent (except for the stack, which is initialized before this
+		// point via an 8 MiB `mmap`).
+		//
+		// TODO(yash): Where is this mmap call? I see it in the kernel logs...
+
+		core = disagg_pin_fhthread_to_core(p);
+		pr_info("New thread Added: pinning local pid[%d] to core[%d]\n", p->pid, core);
+
 		p->pid_ns_id = task_active_pid_ns(current)->pid_ns_id;
-		// spin_unlock(&p->alloc_lock);
 
 		mmput(mm);
 	}
-
-#endif
 
 	return p;
 

@@ -54,6 +54,7 @@
 #include <disagg/exec_disagg.h>
 #include <disagg/network_disagg.h>
 #include <disagg/mmap_disagg.h>
+#include <disagg/rmem_disagg.h>
 #include <disagg/cnthread_disagg.h>
 #include <disagg/print_disagg.h>
 #include <disagg/fault_disagg.h>
@@ -133,6 +134,8 @@ static int mmap_copy_page_data_to_mn_from_file(struct task_struct *tsk, struct f
 		print_page_checksum(data_ptr, tmp_addr);
 
 		payload.address = get_cnmapped_addr(tmp_addr);
+		BUG_ON(payload.address == 0); // CNMapping error!
+
 		// y: This call's local buffer (aka payload.data) is a regular address, not
 		//    a DMAable address. Why do you care? Because sometimes
 		//    send_msg_to_memory needs a DMA address depending on the RDMA
@@ -153,193 +156,33 @@ out:
 }
 
 
-static unsigned long send_mmap_to_control(
-		struct task_struct *tsk, unsigned long addr,
-		unsigned long len, unsigned long prot, unsigned long flags, 
-		unsigned long  vm_flags, unsigned long pgoff, struct file *file,
-		int *ownership, int writable_file_map)
+// This function initializes a remote memory region.
+// It sets up relevant CN_VA -> MN_VA address translations,
+// then initializes the remote memory.
+int mmap_disagg__init_rmem(struct task_struct *tsk, unsigned long addr, unsigned long len,
+		unsigned long pgoff, struct file *file, bool is_writable_file_map)
 {
-	struct mmap_msg_struct payload;
-	struct mmap_reply_struct *reply;
-	unsigned long ret_addr = (unsigned long)NULL;
-	int ret = -1;
+	int ret = rmem_alloc(tsk->tgid, addr, len);
+	if (ret)
+		 return ret;
 
-	reply = kmalloc(sizeof(struct mmap_reply_struct), GFP_KERNEL);
-	if (!reply)
-		 return -ENOMEM;
+	// Initialize the memory contents.
+	if (is_writable_file_map)
+		 ret = mmap_copy_page_data_to_mn_from_file(tsk, file, addr, len, pgoff);
+	else
+		 ret = zero_rmem_region(tsk, addr, len);
 
-retry_mmap:
-	memset(reply, 0, sizeof(struct mmap_reply_struct));
-
-	payload.pid = tsk->pid;
-	payload.tgid = tsk->tgid;
-	payload.pid_ns_id = tsk->pid_ns_id;
-	payload.need_cache_entry = (writable_file_map || !file);
-	payload.addr = addr;
-	payload.len = len;
-	payload.prot = prot;
-	payload.flags = flags;
-	payload.vm_flags = vm_flags;
-	payload.pgoff = pgoff;
-	payload.file_id = writable_file_map ? 0 : ((unsigned long)file);
-
-	pr_syscall("MMAP - Sending to CTRL: tgid: %d, addr: 0x%lx, len: 0x%lu\n",
-			payload.tgid, payload.addr, payload.len);
-
-	ret = send_msg_to_control(DISAGG_MMAP, &payload, sizeof(payload),
-			reply, sizeof(*reply));
-	pr_syscall("MMAP - Recving from CTRL [%d]: ret: %ld, addr: 0x%lx [0x%llx], owner: %d\n",
-			ret, reply->ret, reply->addr, *(long long unsigned *)(reply), !reply->ret ? 1 : 0);
-	if (ret < 0) {
-		msleep(250);
-		goto retry_mmap;
-	}
-
-	pr_maps("CNMAPS: Updating maps after `mmap()` syscall\n");
-	set_cnmaps(reply->maps, MAX_MAPS_IN_REPLY);
-	print_cnmaps();
-
-	//reply->ret = 0: success, cacheline populated, 1: success, cacheline not populated
-	if (!reply->ret && ownership)
-		*ownership = 1;
-	ret_addr = reply->addr;   // set error or addr
-	kfree(reply);
-
-	if (writable_file_map) {
-		// TODO(yash): Why does this only send one page? Is this a bug
-		// in upstream MIND?
-		pr_info("send writable file mapping[%lx, %lx] to swith\n", ret_addr, ret_addr + len);
-		ret = mmap_copy_page_data_to_mn_from_file(tsk, file, ret_addr, len, pgoff);
-	}
-
-	return ret_addr;
-}
-
-unsigned long do_disagg_mmap(struct task_struct *tsk,
-            unsigned long addr, unsigned long len, unsigned long prot,
-			unsigned long flags, vm_flags_t vm_flags, unsigned long pgoff, 
-			struct file *file)
-{
-	// DEBUG: before mapping, sync with the memory node
-	// cn_copy_vma_to_mn(tsk, DISAGG_COPY_VMA);
-
-	// send mmap request to memory node
-	return send_mmap_to_control(tsk, addr, len, prot, flags,
-			(unsigned long)vm_flags, pgoff, file, NULL, 0);
-}
-EXPORT_SYMBOL(do_disagg_mmap); // for unit test in RoceModule
-
-unsigned long do_disagg_mmap_owner(struct task_struct *tsk,
-            unsigned long addr, unsigned long len, unsigned long prot,
-			unsigned long flags, vm_flags_t vm_flags, unsigned long pgoff,
-			struct file *file, int *ownership, int writable_file_map)
-{
-	unsigned long ret;
-	ret = send_mmap_to_control(tsk, addr, len, prot, flags,
-			(unsigned long)vm_flags, pgoff, file, ownership, writable_file_map);
 	return ret;
-}
-
-/*
- * Disaggregated brk
- */
-static unsigned long send_brk_to_mn(struct task_struct *tsk, unsigned long addr)
-{
-	struct brk_msg_struct payload;
-	struct brk_reply_struct *reply;
-	unsigned long ret_addr = (unsigned long)NULL;
-	int ret = -1;
-
-	reply = kmalloc(sizeof(struct brk_reply_struct), GFP_KERNEL);
-	if (!reply)
-		 return -ENOMEM;
-
-	payload.pid = tsk->pid;
-	payload.tgid = tsk->tgid;
-	payload.pid_ns_id = tsk->pid_ns_id;
-	payload.addr = addr;
-
-	ret = send_msg_to_control(DISAGG_BRK, &payload, sizeof(payload),
-			reply, sizeof(*reply));
-	pr_syscall(KERN_DEFAULT "BRK - Data from CTRL [%d]: ret: %d, addr: 0x%lx [0x%llx]\n",
-			ret, reply->ret, reply->addr, *(long long unsigned *)(reply));
-
-	// Check the size of the received data
-	if (ret >=0 && !reply->ret)
-	{
-		ret_addr = reply->addr;   // if success, set it as the updated addr
-
-		pr_maps("CNMAPS: Updating maps after `brk()` syscall\n");
-		set_cnmaps(reply->maps, MAX_MAPS_IN_REPLY);
-		print_cnmaps();
-	}
-
-	kfree(reply);
-	return ret_addr;
-}
-
-unsigned long disagg_brk(struct task_struct *tsk, unsigned long brk)
-{
-	// DEBUG: before mapping, sync with the memory node
-	// cn_copy_vma_to_mn(tsk, DISAGG_COPY_VMA);
-
-	// send request to remote memory
-	return send_brk_to_mn(tsk, brk);
 }
 
 /*
  * Disaggregated munmap
  */
-static int send_munmap_to_mn(struct task_struct *tsk, unsigned long addr,
-							 unsigned long len)
+int mmap_disagg__free_rmem(struct task_struct *tsk, unsigned long start, size_t len)
 {
-	struct munmap_msg_struct payload;
-	struct munmap_reply_struct *reply;
-	int ret = -1;
-
-	reply = kmalloc(sizeof(struct munmap_reply_struct), GFP_KERNEL);
-	if (!reply)
-		 return -ENOMEM;
-
-	payload.pid = tsk->pid;
-	payload.tgid = tsk->tgid;
-	payload.pid_ns_id = tsk->pid_ns_id;
-	payload.addr = addr;
-	payload.len = len;
-
-	pr_syscall("send_munmap_to_mn send_msg_to_control DISAGG_MUNMAP, tgid: %d, pid: %d\n", tsk->tgid, tsk->pid);
-
-	ret = send_msg_to_control(DISAGG_MUNMAP, &payload, sizeof(payload),
-			reply, sizeof(*reply));
-	pr_syscall("MUNMAP - Data from CTRL [%d]: ret: %d [0x%llx]\n",
-			ret, reply->ret, *(long long unsigned *)(reply));
-
-	// Check the size of the received data
-	if (ret >=0 && !reply->ret) {
-		 ret = reply->ret;
-
-		 pr_maps("CNMAPS: Updating maps after `munmap()` syscall\n");
-		 set_cnmaps(reply->maps, MAX_MAPS_IN_REPLY);
-		 print_cnmaps();
-	} else
-		 ret = -1;	// error case
-
-
-	kfree(reply);
-	return ret;
-}
-
-int disagg_munmap(struct task_struct *tsk, unsigned long start, size_t len)
-{
-	int res = -1;
-	res = send_munmap_to_mn(tsk, start, (unsigned long)len);
-	if (!res) {
-		unsigned long offset;
-		start &= PAGE_MASK;
-		for (offset = 0; offset < len; offset += PAGE_SIZE)
-			put_one_cnpage(tsk->tgid, start + offset);
-	}
-	return res;
+	// TODO(yash): This function should only destroy _part_ of a mapping, if it eliminates only part of
+	// that mapping...
+	return rmem_free(tsk->tgid, start, len);
 }
 
 /*

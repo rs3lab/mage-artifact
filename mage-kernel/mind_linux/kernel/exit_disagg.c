@@ -47,12 +47,11 @@ static int send_exit_mm(struct task_struct *tsk, unsigned long clone_flags)
 int disagg_exit(struct task_struct *tsk)
 {
     int err;
-    int cnt __maybe_unused = decrement_test_program_thread_cnt(tsk->tgid);
     unsigned long exit_flag = EXIT_FIRST_TRY;
 
     if (tsk->is_remote)
     {
-        pr_syscall("EXIT: cnt[%d], tgid: %d\n", cnt, tsk->tgid);
+        pr_syscall("EXIT: tgid: %d\n", tsk->tgid);
 
 retry_send_exit:
         err = send_exit_mm(tsk, exit_flag);

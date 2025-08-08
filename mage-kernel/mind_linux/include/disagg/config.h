@@ -8,8 +8,7 @@
 #define TEST_PROGRAM_NAME "test_mltthrd"
 #define TEST_PROGRAM_DIGIT 12
 
-#define LAUNCHER_PROGRAM_NAME "launcher_thread"
-#define EXAMPLE_PROGRAM_NAME "exmp_mltthrd"
+#define MIND_RMEM_SIZE_MIB    8192ULL
 
 // NOTE: switch control plane may have different limit for total number of processes in a cluster
 #define MAX_PROCESS_BUCKET_SIZE 1024   
@@ -52,11 +51,6 @@ int TEST_is_target_vma(unsigned long vm_start, unsigned long vm_end);
 int TEST_is_sub_target_vma(unsigned long vm_start, unsigned long vm_end);
 int TEST_is_meta_vma(unsigned long vm_start, unsigned long vm_end);
 int TEST_is_test_vma(unsigned long vm_start, unsigned long vm_end);
-// Thread counter for test program
-void init_test_program_thread_cnt(void);
-int *get_test_program_thread_cnt(int tgid);
-int increment_test_program_thread_cnt(int tgid);
-int decrement_test_program_thread_cnt(int tgid);
 
 #endif
 #endif
