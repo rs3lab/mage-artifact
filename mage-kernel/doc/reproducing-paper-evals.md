@@ -5,32 +5,33 @@ Evaluation proceeds in multiple phases, as per the SOSP Artifact Guidelines:
 - [Data Collection Phase](#data-collection-phase) describes how to run our
   evaluations and collect data. 
 - [Data Processing Phase](#data-processing-phase) describes how to process the
-  prior data into a usable form (CSVs). 
-- [Data Presentation Phase](#data-presentation-phase) converts the CSVs into
-  Figures for the paper. 
-
+  prior data into a usable form (CSVs). It also produces some quick graphs for
+  you to compare to the paper. 
 
 ## Data Collection Phase
 
-### Sequential Read Benchmark: Tput + Latency Only
-
-*Estimated Runtime: 5m per data point => 40 minutes total*. 
-
-Run `$MIND_ROOT/apps/sequential-read/run-benchmark.zsh`, and data will be
-generated in `$MIND_ROOT/apps/sequential-read`. 
-
-Here's what the script does: 
+Each application has its own `run-benchmark.zsh` script that manages the
+benchmark process for you. All scripts follow the same logic: 
 
 1. Compile the benchmark application. 
 2. Ensure kernel is compiled for the right application. 
    (Mage-Linux can run arbitrary applications; but to simplify implementation,
    it will apply its logic only on executables matching a given name; eg
    "memcached"). 
-3. Set up the Mage cluster. Run the application. 
-4. Reset the Mage cluster. (Mage has a bug when exiting applications, so we
-   reset the cluster for stability). 
+3. Set runtime parameters (eg: amount of local memory available). 
+4. Set up the Mage cluster. Run the application. 
+5. Record data from our in-kernel profiling framework. 
+6. Reset the Mage cluster. (Mage has a bug when exiting applications, so we
+   reset the cluster after every data-point for stability). 
+7. GOTO step (3) until all parameters are tested. 
+
+### Sequential Read Benchmark: Tput + Latency Only
+
+*Estimated Runtime: 5m per data point => 40 minutes total*. 
 
 This benchmark collects throughput (event counts) and latency samples. 
+Run `$MIND_ROOT/apps/sequential-read/run-benchmark.zsh` on the Frontend machine,
+and data will be generated in `$MIND_ROOT/apps/sequential-read`. 
 
 ### Sequential Read Benchmark: Latency Breakdown Only
 
@@ -54,25 +55,33 @@ read benchmark. Run
 `$MIND_ROOT/apps/sequential-read-latency-breakdown/run-benchmark.zsh`, and
 data will be generated in `$MIND_ROOT/apps/sequential-read-latency-breakdown`. 
 
-
 ### Page-Rank (GapBS) Benchmark
 
-*Estimated Time: 10m per data point*. 
+*Estimated Time: 6m per data point => 35 minutes total*. 
 
 This application requires a large Kroenecker graph dataset to traverse. 
 Please move this graph to `/scratch/kron.sg` in the Compute Node VM. 
 **SOSP Evaluators**: we have done this for you.
 
 Once you have copied the file into the VM, run
-`$MIND_ROOT/apps/page-rank/run-benchmark.zsh`.
+`$MIND_ROOT/apps/page-rank/run-benchmark.zsh` on the Frontend machine. 
 Data will be generated in `$MIND_ROOT/apps/page-rank`. 
+The script
 
 ### XSBench Benchmark
 
-*Estimated Time: 10m per data point*. 
+*Estimated Time: 5m per data point => 35 minutes total*. 
 
-Run `$MIND_ROOT/apps/xsbench/run-benchmark.zsh`.
+Run `$MIND_ROOT/apps/xsbench/run-benchmark.zsh` on the Frontend machine.
 Data will be generated in `$MIND_ROOT/apps/xsbench`. 
+
+### MemCached Benchmark
+
+This data is in the process of being replaced by a different evaluation for the
+camera-ready submission, as described in our revision plan w/ our Shepherd. 
+Please see that document for details and timelines, and reach out to Yash Lala
+<yash.lala@yale.edu> if you have questions. 
+
 
 ## Data Processing Phase
 
@@ -127,3 +136,10 @@ The corresponding graphs will appear in `$MIND_ROOT/scripts/evals/fig/fig-9a-gap
 Run `$MIND_ROOT/scripts/evals/fig-9b-xsbench-tput.py`. 
 The outputs will appear in `$MIND_ROOT/scripts/evals/csv/fig-9b-xsbench-tput.csv`
 The corresponding graphs will appear in `$MIND_ROOT/scripts/evals/fig/fig-9b-xsbench-tput.png`. 
+
+### Figure 13a: MemCached Benchmark
+
+This data is in the process of being replaced by a different evaluation for the
+camera-ready submission, as described in our revision plan w/ our Shepherd. 
+Please see that document for details and timelines, and reach out to Yash Lala
+<yash.lala@yale.edu> if you have questions. 
