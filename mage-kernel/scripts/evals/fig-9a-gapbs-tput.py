@@ -122,7 +122,7 @@ df['lmem_percent'] = (100 * df['lmem_mib'] / max_lmem)
 
 print('Writing output CSV to', csv_path)
 csv_path.parent.mkdir(parents=True, exist_ok=True)
-df.to_csv(csv_path, index=False)
+df.to_csv(csv_path, index=False, columns=['lmem_percent', 'tput'])
 
 print('Writing output figure to', fig_path)
 plt.figure(figsize=(6, 4))
