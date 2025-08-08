@@ -671,8 +671,6 @@ struct task_struct {
 	bool 				is_mind_binary;
 	// Set for MIND processes (ie: processes that can use remote mem).
 	bool				is_remote;
-	// Set when threads are present on other compute nodes too.
-	bool 				run_on_other_node;
 	// Every RDMA thread needs a dedicated QP+CQ to send RDMA requests.
 	// We store this QP in `current->qp_handle`.
 	void  				*qp_handle;

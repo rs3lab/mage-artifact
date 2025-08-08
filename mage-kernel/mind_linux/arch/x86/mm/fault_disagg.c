@@ -105,6 +105,7 @@ static int send_page_fault_to_memory(struct task_struct *tsk, u64 raddr, u64 lad
 	u64 raddr_translated = get_cnmapped_addr(raddr);
 	struct mind_rdma_req req;
 
+	BUG_ON(raddr_translated == 0); // cnmapping error!
 	BUG_ON(mind_rdma_read_fn(tsk->qp_handle, (void *) laddr_dma, raddr_translated,
 				PAGE_SIZE, &req));
 
@@ -119,6 +120,8 @@ static int send_page_fault_to_memory(struct task_struct *tsk, u64 raddr, u64 lad
 		}
 		if (ret == 1)
 			 break;
+
+		pr_err("Error when polling for CQE! raddr: 0x%llx -> 0x%llx\n", raddr, raddr_translated);
 		BUG(); 
 	}
 

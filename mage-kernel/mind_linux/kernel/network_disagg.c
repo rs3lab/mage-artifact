@@ -809,3 +809,36 @@ inline unsigned long map_region_for_dma(void *addr, unsigned long size)
     BUG_ON(!mind_rdma_map_dma_fn);
     return mind_rdma_map_dma_fn(addr, size);
 }
+
+// This function fills a remote memory region with zeroes.
+// Pass in the _local_ address of the memory region. 
+int zero_rmem_region(struct task_struct *tsk, u64 addr, size_t len)
+{
+    unsigned long zero_addr, zero_addr_dma;
+    u64 offset;
+
+    BUG_ON(!PAGE_ALIGNED(addr));
+    BUG_ON(len % PAGE_SIZE != 0);
+    BUG_ON(mind_rdma_write_sync_fn == NULL);
+    BUG_ON(!mind_rdma_map_dma_fn || !mind_rdma_unmap_dma_fn);
+    BUG_ON(!tsk->qp_handle);
+
+    zero_addr = get_zeroed_page(GFP_KERNEL);
+    BUG_ON(!zero_addr);
+    zero_addr_dma = mind_rdma_map_dma_fn(virt_to_page(zero_addr), PAGE_SIZE);
+    BUG_ON(!zero_addr_dma);
+
+    // Zero the page contents.
+    for (offset = 0; offset < len; offset += PAGE_SIZE) {
+        u64 raddr = get_cnmapped_addr(addr + offset);
+        if (raddr == 0) {
+            pr_err("zero_rmem_region: couldn't cnmap laddr 0x%llx!\n", addr + offset);
+            BUG();
+        }
+        BUG_ON(mind_rdma_write_sync_fn(tsk->qp_handle, (void *) zero_addr_dma, PAGE_SIZE, raddr));
+    }
+
+    mind_rdma_unmap_dma_fn(zero_addr_dma, PAGE_SIZE);
+    free_page(zero_addr);
+    return 0;
+}

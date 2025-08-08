@@ -392,7 +392,6 @@ void disagg_cn_thread_init(void)
     prealloc_kernel_shared_mem();
     memset(&dummy_vma, 0, sizeof(dummy_vma));
 
-    init_test_program_thread_cnt();
     init_cnthreads();
 }
 
@@ -705,8 +704,15 @@ static void cnthread_reclaim__calculate_raddrs(struct cnthread_reclaim_victim_ba
     for (i = 0; i < CNTHREAD_RECLAIM_BATCH_SIZE; i++) {
         struct cnthread_reclaim_victim *victim = &batch->victims[i];
         // Don't add the memory server base offset yet. that's done during RDMA send.
-        if (victim->need_push_back)
+        if (victim->need_push_back) {
              victim->raddr = __get_cnmapped_addr(victim->laddr);
+
+             if (victim->raddr == 0) { // Invalid translation!
+                 victim->status = CNTHREAD_RECLAIM_VICTIM_SKIP;
+                 victim->status_code = CNTHREAD_RECLAIM_VICTIM_SKIP_INVALID_CNMAP;
+                 continue;
+             }
+        }
     }
     read_unlock_cnmap_table();
 }
@@ -1166,7 +1172,9 @@ static void __cnthread_clean_up_non_existing_entry(u16 tgid, struct mm_struct *m
     }
 }
 
-int cnthread_clean_up_non_existing_entry(u16 tgid, struct mm_struct *mm)
+// Clean up cnpages that aren't tied to VMAs anymore.
+// Serves as a form of garbage collection; very useful after an exec!
+int free_orphaned_cnpages(u16 tgid, struct mm_struct *mm)
 {
     int i;
     for (i = 0; i < CNTHREAD_LRU_TABLE_SIZE; i++)

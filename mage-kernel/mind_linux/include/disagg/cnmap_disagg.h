@@ -25,10 +25,14 @@ struct mind_map_msg {
 } __packed;
 
 void set_cnmaps(struct mind_map_msg *maps, size_t size);
+void add_one_cnmap(struct mind_map_msg *map);
 uint64_t get_cnmapped_addr(unsigned long addr);
 void read_lock_cnmap_table(void);
 void read_unlock_cnmap_table(void);
+void write_lock_cnmap_table(void);
+void write_unlock_cnmap_table(void);
 uint64_t __get_cnmapped_addr(unsigned long addr);
 void print_cnmaps(void);
+void clear_cnmaps(void);
 
 #endif /* __MIND_MAP_DISAGGREGATION_H__ */

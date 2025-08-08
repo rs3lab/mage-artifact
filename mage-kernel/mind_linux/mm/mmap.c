@@ -55,6 +55,7 @@
 #include <disagg/config.h>
 #include <disagg/cnmap_disagg.h>
 #include <disagg/mmap_disagg.h>
+#include <disagg/rmem_disagg.h>
 #include <disagg/cnthread_disagg.h>
 #include <disagg/print_disagg.h>
 
@@ -190,72 +191,48 @@ int find_vma_links(struct mm_struct *mm, unsigned long addr,
 				   unsigned long end, struct vm_area_struct **pprev,
 				   struct rb_node ***rb_link, struct rb_node **rb_parent);
 
+/*
+ * Disaggregated brk
+ */
+
 #define BRK_SYSCALL_FLAG_DEF 0xFFFFFFFF
 
-SYSCALL_DEFINE1(brk, unsigned long, brk)
+// This function initializes a remote memory region.
+// It sets up relevant CN_VA -> MN_VA address translations,
+// then initializes the remote memory.
+static int __brk_init_rmem(struct task_struct *tsk, unsigned long old_brk, unsigned long new_brk)
 {
-	unsigned long retval;
-	unsigned long newbrk = 0, oldbrk = 0;
+	size_t size = new_brk - old_brk;
+	int ret;
+
+	BUG_ON(!PAGE_ALIGNED(old_brk));
+	BUG_ON(!PAGE_ALIGNED(new_brk));
+	BUG_ON(new_brk <= old_brk);
+
+	ret = rmem_alloc(tsk->tgid, old_brk, size);
+	if (ret)
+		 return ret;
+
+	// Initialize the memory contents.
+	return zero_rmem_region(tsk, old_brk, size);
+}
+
+// Same function as brk(), but only for remote processes.
+static unsigned long __brk_disagg(unsigned long brk)
+{
+	unsigned long new_brk = 0, old_brk = 0;
 	struct mm_struct *mm = current->mm;
-	struct vm_area_struct *next;
 	unsigned long min_brk = 0;
-	bool populate;
+	unsigned long flags = (VM_DATA_DEFAULT_FLAGS | VM_ACCOUNT | mm->def_flags)
+		& ~(VM_READ | VM_WRITE | VM_EXEC);
+	struct rb_node **rb_link, *rb_parent;
+	struct vm_area_struct *prev;
+	unsigned long ret;
 	LIST_HEAD(uf);
-	unsigned long mn_retval = 0;
 
-#ifdef CONFIG_COMPUTE_NODE
-	if (current->is_remote) {
-		pr_syscall(KERN_DEFAULT "BRK (before lock) - brk: %lx, cpu: %d\n", brk, smp_processor_id());
-	}
-#endif
-
+	pr_syscall("BRK: %lx, cpu: %d\n", brk, smp_processor_id());
 	if (down_write_killable(&mm->mmap_sem))
 		return -EINTR;
-
-#ifdef CONFIG_COMPUTE_NODE
-	if (current->is_remote /*&& !current->is_mind_binary*/)
-	{
-		unsigned long flags = (VM_DATA_DEFAULT_FLAGS | VM_ACCOUNT | mm->def_flags) & ~(VM_READ | VM_WRITE | VM_EXEC);
-		struct rb_node **rb_link, *rb_parent;
-		struct vm_area_struct *prev;
-
-		mn_retval = disagg_brk(current, brk);	// new brk address (not brk)
-		if (mn_retval == 0) // NULL
-			 goto out;
-
-		newbrk = PAGE_ALIGN(brk);
-		oldbrk = PAGE_ALIGN(mm->brk);
-		if (brk <= mm->brk)
-		{
-			if (!do_munmap(mm, newbrk, oldbrk - newbrk, &uf))
-			{
-				goto mn_set_brk;
-			}
-			retval = -ENOMEM;
-			goto out;
-		}
-
-		// Remove previous mappings - it should not find any
-		while (find_vma_links(mm, oldbrk, newbrk, &prev, &rb_link, &rb_parent))
-		{
-			if (do_munmap(mm, oldbrk, newbrk - oldbrk, &uf))
-			{
-				retval = -ENOMEM;
-				goto out;
-			}
-		}
-
-		if (newbrk <= oldbrk || IS_ERR_VALUE(mmap_dummy_region(mm, oldbrk, newbrk - oldbrk, flags)))
-		{
-			printk(KERN_DEFAULT "Cannot assign dummy region for brk 0x%lx - 0x%lx: skip for now\n",
-					oldbrk, newbrk);
-		}
-mn_set_brk:
-		mm->brk = brk;
-		up_write(&mm->mmap_sem);
-		goto mn_brk;
-	}
-#endif
 
 #ifdef CONFIG_COMPAT_BRK
 	/*
@@ -271,7 +248,7 @@ mn_set_brk:
 	min_brk = mm->start_brk;
 #endif
 	if (brk < min_brk)
-		goto out;
+		goto err;
 
 	/*
 	 * Check against rlimit here. If this check is done later after the test
@@ -281,7 +258,98 @@ mn_set_brk:
 	 */
 	if (check_data_rlimit(rlimit(RLIMIT_DATA), brk, mm->start_brk,
 			      mm->end_data, mm->start_data))
-		goto out;
+		goto err;
+
+	new_brk = PAGE_ALIGN(brk);
+	old_brk = PAGE_ALIGN(mm->brk);
+
+	// Always allow shrinking the brk.
+	if (brk <= mm->brk) {
+		if (!do_munmap(mm, new_brk, old_brk - new_brk, &uf))
+			goto set_brk;
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	if (new_brk <= old_brk)
+		 goto set_brk;
+
+	// Allocate remote memory for the new BRK region.
+	// TODO: Expand the existing segment instead of just creating a new mapping...
+	BUG_ON(__brk_init_rmem(current, old_brk, new_brk));
+
+	// Remove previous mappings - it should not find any
+	while (find_vma_links(mm, old_brk, new_brk, &prev, &rb_link, &rb_parent)) {
+		if (do_munmap(mm, old_brk, new_brk - old_brk, &uf)) {
+			ret = -ENOMEM;
+			goto err;
+		}
+	}
+
+	// Fill in the new brk segment with a new, dummy, VMA. (Or expand prior VMA.)
+	if (IS_ERR_VALUE(mmap_dummy_region(mm, old_brk, new_brk - old_brk, flags)))
+		 printk(KERN_DEFAULT "Cannot assign dummy region for brk 0x%lx - 0x%lx: skip for now\n",
+				 old_brk, new_brk);
+
+set_brk:
+	mm->brk = brk;
+	up_write(&mm->mmap_sem);
+
+	// DEBUG_print_vma(mm);
+	pr_syscall(KERN_DEFAULT "BRK (local) - allocated addr: 0x%lx -> 0x%lx\n",
+			old_brk, new_brk);
+	return brk;
+
+err:
+	pr_syscall(KERN_DEFAULT "BRK_ERR (local) - brk: 0x%lx, mm->brk: 0x%lx, min_brk: 0x%lx\n",
+			brk, mm->brk, min_brk);
+	ret = mm->brk;
+	up_write(&mm->mmap_sem);
+	return ret;
+}
+
+
+SYSCALL_DEFINE1(brk, unsigned long, brk)
+{
+	unsigned long retval;
+	unsigned long newbrk = 0, oldbrk = 0;
+	struct mm_struct *mm = current->mm;
+	struct vm_area_struct *next;
+	unsigned long min_brk = 0;
+	bool populate;
+	LIST_HEAD(uf);
+
+	if (current->is_remote)
+		 return __brk_disagg(brk);
+
+	if (down_write_killable(&mm->mmap_sem))
+		return -EINTR;
+
+#ifdef CONFIG_COMPAT_BRK
+	/*
+	 * CONFIG_COMPAT_BRK can still be overridden by setting
+	 * randomize_va_space to 2, which will still cause mm->start_brk
+	 * to be arbitrarily shifted
+	 */
+	if (current->brk_randomized)
+		min_brk = mm->start_brk;
+	else
+		min_brk = mm->end_data;
+#else
+	min_brk = mm->start_brk;
+#endif
+	if (brk < min_brk)
+		goto err;
+
+	/*
+	 * Check against rlimit here. If this check is done later after the test
+	 * of oldbrk with newbrk then it can escape the test and let the data
+	 * segment grow beyond its set limit the in case where the limit is
+	 * not page aligned -Ram Gupta
+	 */
+	if (check_data_rlimit(rlimit(RLIMIT_DATA), brk, mm->start_brk,
+			      mm->end_data, mm->start_data))
+		goto err;
 
 	newbrk = PAGE_ALIGN(brk);
 	oldbrk = PAGE_ALIGN(mm->brk);
@@ -292,17 +360,17 @@ mn_set_brk:
 	if (brk <= mm->brk) {
 		if (!do_munmap(mm, newbrk, oldbrk-newbrk, &uf))
 			goto set_brk;
-		goto out;
+		goto err;
 	}
 
 	/* Check against existing mmap mappings. */
 	next = find_vma(mm, oldbrk);
 	if (next && newbrk + PAGE_SIZE > vm_start_gap(next))
-		goto out;
+		goto err;
 
 	/* Ok, looks good - let it rip. */
 	if (do_brk(oldbrk, newbrk-oldbrk, &uf) < 0)
-		goto out;
+		goto err;
 
 set_brk:
 	mm->brk = brk;
@@ -313,27 +381,9 @@ set_brk:
 	if (populate)
 		mm_populate(oldbrk, newbrk - oldbrk);
 
-mn_brk:
-#ifdef CONFIG_COMPUTE_NODE
-	if (current->is_remote /*&& !current->is_mind_binary*/)
-	{
-		// DEBUG_print_vma(mm);
-		pr_syscall(KERN_DEFAULT "BRK (local) - allocated addr: 0x%lx -> 0x%lx\n",
-				   oldbrk, newbrk);
-		pr_syscall(KERN_DEFAULT "BRK (remote) - allocated addr: 0x%lx\n", mn_retval);
-	}
-#endif	
 	return brk;
 
-out:
-#ifdef CONFIG_COMPUTE_NODE
-	if (current->is_remote)
-	{
-		pr_syscall(KERN_DEFAULT "BRK_ERR (local) - brk: 0x%lx, mm->brk: 0x%lx, min_brk: 0x%lx\n",
-				   brk, mm->brk, min_brk);
-		pr_syscall(KERN_DEFAULT "BRK_ERR (remote) - addr: 0x%lx\n", mn_retval);
-	}
-#endif	
+err:
 	retval = mm->brk;
 	up_write(&mm->mmap_sem);
 	return retval;
@@ -1434,9 +1484,11 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
 {
 	struct mm_struct *mm = current->mm;
 	int pkey = 0;
-	unsigned long mn_addr = 0, lo_addr = 0;
-
 	*populate = 0;
+
+	if (current->is_remote)
+		 pr_syscall("Entered do_mmap: file=%p, addr=0x%lx, len=%lu, pgoff=0x%lx\n",
+				 file, addr, len, pgoff);
 
 	if (!len)
 		return -EINVAL;
@@ -1468,128 +1520,75 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
 	if (mm->map_count > sysctl_max_map_count)
 		return -ENOMEM;
 
-#ifdef CONFIG_COMPUTE_NODE
-	if (current->is_remote)
-	{
-		int ownership = 0;
-		int writable_file_map = 0;
-        /*
-		if (current->is_mind_binary && (flags & 0xff) == TEST_ALLOC_FLAG)
-		{
-			flags = MAP_PRIVATE | MAP_ANONYMOUS;
-		}
-        */
-		// print_remote_alloc(len);
-		pr_syscall("MMAP (request, R%d/T%d) - addr: 0x%lx, len: %lu (f: %d), prot: 0x%lx, vmflag: 0x%lx, flag: 0x%lx\n",
-				   current->is_remote, current->is_mind_binary, addr, len, file ? 1 : 0,
-				   prot, vm_flags, flags);
-		// DEBUG_print_vma(mm);
-
-		//TODO: same as what we do in exec, make switch think writable
-		//file mappings are anonymous, then push data to it
-		if (current->is_remote && (prot & PROT_WRITE) && file) {
-			pr_syscall("writable file map set\n");
-			writable_file_map = 1;
-		}
-
-		if (writable_file_map || (!file && (flags & MAP_TYPE) != MAP_SHARED))	// for the file, use the returned address from memory node
-		{
-			vm_flags |= calc_vm_prot_bits(prot, pkey) | calc_vm_flag_bits(flags) |
-					mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
-		}
-
-		// we release lock here to avoid deadlock
-		// munmap from other blades needs to hold lock and modify address space, if we do not release mm lock there will be deadlock
-		// but it's very unsafe todo so FIXME when we have some time
-		// another problem is send mmap to switch is protected by mm_sem but send munmap is not.
-		// up_write(&mm->mmap_sem);
-
-		// we do not handle file-backed mmap here
-		mn_addr = do_disagg_mmap_owner(current, addr, len,
-									   prot, flags, vm_flags, pgoff, file, &ownership, writable_file_map);
-		
-		// acquire lock again
-		// if (down_write_killable(&mm->mmap_sem)) {
-		// 	return -EINTR;
-		// }
-
-		if (IS_ERR_VALUE(mn_addr))
-		{
-			printk(KERN_DEFAULT "MMAP (Err: %ld) - addr: 0x%lx, len: %lu (f: %d)\n", 
-				(long)mn_addr, addr, len, file ? 1 : 0);
-			return mn_addr;	//return error
-		}else{
-			struct rb_node **rb_link, *rb_parent;
-			struct vm_area_struct *prev;
-			int err;
-
-			// remove previous mappings - it should not find any
-			while (find_vma_links(mm, mn_addr, mn_addr + len, &prev, &rb_link, &rb_parent))
-			{
-				err = do_munmap(mm, mn_addr, len, uf);
-				if (err)
-				{
-					printk(KERN_DEFAULT "MMAP (Unmap Err: %d) - mn_addr: 0x%lx, len: %lu (f: %d)\n",
-						   err, mn_addr, len, file ? 1 : 0);
-					addr = -ENOMEM;
-					goto mmap_out;
-				}
-			}
-		}
-
-		if (writable_file_map || (!file && (flags & MAP_TYPE) != MAP_SHARED))
-		{
-			vm_flags_t any_access = VM_READ | VM_WRITE | VM_EXEC | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
-			if (ownership){
-				unsigned long tar_addr = (mn_addr & CNTHREAD_CACHELINE_MASK);
-				for (; tar_addr < mn_addr + min(len, CNTHREAD_MAX_CACHE_BLOCK_NUMBER * PAGE_SIZE);
-					 tar_addr += PAGE_SIZE)
-				{
-					if (tar_addr < mn_addr + TEST_DEBUG_SIZE_LIMIT)
-						cnthread_create_owner_cacheline(current->tgid, tar_addr, mm);
-					else
-						break;
-				}
-			}
-			if (IS_ERR_VALUE(mmap_dummy_region(mm, mn_addr, len, vm_flags & ~(any_access)))) // no write permission
-			{
-				addr = -ENOMEM;
-				goto mmap_out;
-			}else{
-				addr = mn_addr;
-				goto mmap_out;	//skip the local mapping
-			}
-		}
-	}
-#endif
 
 	/* Obtain the address to map to. we verify (or select) it and ensure
 	 * that it represents a valid section of the address space.
 	 */
-#ifdef CONFIG_COMPUTE_NODE
-	/* with disagg memory */
-	// if (current->is_remote){
-	// 	addr = mn_addr;
-	// 	lo_addr = get_unmapped_area(file, addr, len, pgoff, flags);
-	// }else{
-	// 	addr = get_unmapped_area(file, addr, len, pgoff, flags);
-	// }
-
-	/* DEBUG without disagg memory */
 	addr = get_unmapped_area(file, addr, len, pgoff, flags);
-	lo_addr = addr;
-	//also set addr tobe mn_addr for file mappings
-	if (current->is_remote && current->is_mind_binary) {
-		addr = mn_addr;
-	}
-#else
-	addr = get_unmapped_area(file, addr, len, pgoff, flags);
-#endif
-	if (offset_in_page(addr))
+	if (offset_in_page(addr)) // return error if needed
 		return addr;
 
-	if (prot == PROT_EXEC)
+	if (current->is_remote)
+		 pr_syscall("do_mmap: new unmapped addr=0x%lx\n", addr);
+
+	// If the process is remote:
+	// 1. Set up the CN vaddr -> MN vaddr address translations.
+	// 2. Conduct a _subset_ of checks (performed after this if statement too???)
+	// 3. Unmap prior mappings in that CN vaddr region.
+	// 4. Create a "dummy" VMA if required (dummy := no local phys mem allocated).
+	if (current->is_remote)
 	{
+		struct rb_node **rb_link, *rb_parent;
+		struct vm_area_struct *prev;
+		int err;
+
+		bool is_writable_file_map = (prot & PROT_WRITE) && file;
+		bool requires_dummy_vma = is_writable_file_map
+				|| (!file && (flags & MAP_TYPE) != MAP_SHARED);
+
+		// y: Don't understand this line.
+		if (requires_dummy_vma)
+			vm_flags |= calc_vm_prot_bits(prot, pkey) | calc_vm_flag_bits(flags) |
+					mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
+
+		// SS: we do not handle file-backed mmap here
+		// TODO(yash): ^ When does the memory node actually alloc remote memory???
+		//               Should I ignore everything iff writable file map???
+		err = mmap_disagg__init_rmem(current, addr, len, pgoff, file, is_writable_file_map);
+		if (err) {
+			pr_err("ERR: MMAP: Couldn't initiate remote memory! laddr: 0x%lx, err: %d \n",
+					addr, err);
+			return err;
+		} 
+
+		// remove previous mappings - it should not find any
+		// y: This code may be redundant, since this is also done in mmap_dummy_region.
+		while (find_vma_links(mm, addr, addr + len, &prev, &rb_link, &rb_parent)) {
+			err = do_munmap(mm, addr, len, uf);
+			if (err) {
+				WARN_ON(true);
+				addr = -ENOMEM;
+				goto mmap_out;
+			}
+		}
+
+		// y: Create a "fake" VMA that doesn't map to underlying physically-allocated
+		// memory. This function is part of base Linux; not a MIND addition.
+		if (requires_dummy_vma) {
+			vm_flags_t any_access = VM_READ | VM_WRITE | VM_EXEC | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
+
+			// no write permission
+			if (IS_ERR_VALUE(mmap_dummy_region(mm, addr, len, vm_flags & ~(any_access)))) { 
+				addr = -ENOMEM;
+				goto mmap_out;
+			} 
+			goto mmap_out;	// skip the local mapping
+		}
+	}
+
+	// TODO: Move this before the remote-memory specific section if needed.
+	//       I don't understand why this code is _after_ rmem specific code.
+	if (prot == PROT_EXEC) {
 		pkey = execute_only_pkey(mm);
 		if (pkey < 0)
 			pkey = 0;
@@ -1602,18 +1601,12 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
 	vm_flags |= calc_vm_prot_bits(prot, pkey) | calc_vm_flag_bits(flags) |
 			mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
 
-	if (flags & MAP_LOCKED)
-	{
-		if (!can_do_mlock())
-		{
-			addr = -EPERM;
-			goto mmap_out;
-		}
+	if (flags & MAP_LOCKED && !can_do_mlock()) {
+		 addr = -EPERM;
+		 goto mmap_out;
 	}
-
 	// Check lock based on mm and flags
-	if (mlock_future_check(mm, vm_flags, len))
-	{
+	if (mlock_future_check(mm, vm_flags, len)) {
 		addr = -EAGAIN;
 		goto mmap_out;
 	}
@@ -1636,13 +1629,11 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
 			flags &= LEGACY_MAP_MASK;
 			/* fall through */
 		case MAP_SHARED_VALIDATE:
-			if (flags & ~flags_mask)
-			{
+			if (flags & ~flags_mask) {
 				addr = -EOPNOTSUPP;
 				goto mmap_out;
 			}
-			if ((prot&PROT_WRITE) && !(file->f_mode&FMODE_WRITE))
-			{
+			if ((prot & PROT_WRITE) && !(file->f_mode & FMODE_WRITE)) {
 				addr = -EACCES;
 				goto mmap_out;
 			}
@@ -1651,8 +1642,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
 			 * Make sure we don't allow writing to an append-only
 			 * file..
 			 */
-			if (IS_APPEND(inode) && (file->f_mode & FMODE_WRITE))
-			{
+			if (IS_APPEND(inode) && (file->f_mode & FMODE_WRITE)) {
 				addr = -EACCES;
 				goto mmap_out;
 			}
@@ -1660,8 +1650,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
 			/*
 			 * Make sure there are no mandatory locks on the file.
 			 */
-			if (locks_verify_locked(file))
-			{
+			if (locks_verify_locked(file)) {
 				addr = -EAGAIN;
 				goto mmap_out;
 			}
@@ -1672,27 +1661,23 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
 
 			/* fall through */
 		case MAP_PRIVATE:
-			if (!(file->f_mode & FMODE_READ))
-			{
+			if (!(file->f_mode & FMODE_READ)) {
 				addr = -EACCES;
 				goto mmap_out;
 			}
 			if (path_noexec(&file->f_path)) {
-				if (vm_flags & VM_EXEC)
-				{
+				if (vm_flags & VM_EXEC) {
 					addr = -EPERM;
 					goto mmap_out;
 				}
 				vm_flags &= ~VM_MAYEXEC;
 			}
 
-			if (!file->f_op->mmap)
-			{
+			if (!file->f_op->mmap) {
 				addr = -ENODEV;
 				goto mmap_out;
 			}
-			if (vm_flags & (VM_GROWSDOWN|VM_GROWSUP))
-			{
+			if (vm_flags & (VM_GROWSDOWN|VM_GROWSUP)) {
 				addr = -EINVAL;
 				goto mmap_out;
 			}
@@ -1705,8 +1690,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
 	} else {
 		switch (flags & MAP_TYPE) {
 		case MAP_SHARED:
-			if (vm_flags & (VM_GROWSDOWN|VM_GROWSUP))
-			{
+			if (vm_flags & (VM_GROWSDOWN|VM_GROWSUP)) {
 				addr = -EINVAL;
 				goto mmap_out;
 			}
@@ -1748,46 +1732,15 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
 	     (flags & (MAP_POPULATE | MAP_NONBLOCK)) == MAP_POPULATE))
 		*populate = len;
 
-#ifdef CONFIG_COMPUTE_NODE
-	if (current->is_remote)
-	{
-		pr_syscall(KERN_DEFAULT "MMAP - l_addr: 0x%lx, r_addr: 0x%lx, addr/err: 0x%lx, len: %lu (f: %d)\n",
-				   lo_addr, mn_addr, addr, len, file ? 1 : 0);
-	}
-#endif
-
 mmap_out:
-#ifdef CONFIG_COMPUTE_NODE
-	if (current->is_remote || current->is_mind_binary)
-	{
-		if (!IS_ERR_VALUE(addr))
-		{
-			/* DEBUG */
-			// WARN_ON(addr != mn_addr);
-			if (file){
-				// We already requested address for file-backed mapping
-				pr_syscall("MMAP (remote tgid:%u) - mn_addr: 0x%lx, lo_addr: 0x%lx, len: %lu (f)\n",
-						   (unsigned)current->tgid, mn_addr, lo_addr, len);
-			}else{
-				pr_syscall("MMAP (remote tgid:%u) - addr: 0x%lx, lo_addr: 0x%lx, len: %lu, flag: 0x%lx, pkey: %d\n",
-						   (unsigned)current->tgid, addr, lo_addr, len, vm_flags, pkey);
-				// DEBUG_print_vma(mm);
-			}		
-		}else{
-			if(file)
-			{
-				// report failure
-				printk(KERN_DEFAULT "MMAP (Err: %ld) - File\n", (long)addr);
-				// disagg_munmap(current, mn_addr, len);
-				BUG();
-			}else{
-				// report failure
-				printk(KERN_DEFAULT "MMAP (Err: %ld)\n", (long)addr);
-				BUG();
-			}
+	if (current->is_remote || current->is_mind_binary) {
+		if (IS_ERR_VALUE(addr)) {
+			pr_err("MMAP (Err: %ld) - File: 0x%px\n", (long) addr, file);
+			BUG();
 		}
+		pr_syscall("MMAP: done - addr: 0x%lx, len: %lu, flag: 0x%lx, pkey: %d\n",
+				addr, len, vm_flags, pkey);
 	}
-#endif
 	return addr;
 }
 
@@ -3170,48 +3123,60 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
 	return 0;
 }
 
+static int munmap_free_cnpages(struct task_struct *tsk, unsigned long start, size_t len)
+{
+	unsigned long offset;
+	start &= PAGE_MASK;
+
+	for (offset = 0; offset < len; offset += PAGE_SIZE)
+		 put_one_cnpage(tsk->tgid, start + offset);
+	return 0;
+}
+
+static int __disagg_vm_munmap(unsigned long start, size_t len)
+{
+	struct mm_struct *mm = current->mm;
+	int ret;
+	LIST_HEAD(uf);
+
+	pr_syscall(KERN_DEFAULT "MUNMAP (before lock) - start: %lx, len: %lu, cpu: %d\n",
+			start, len, smp_processor_id());
+
+	if (down_write_killable(&mm->mmap_sem))
+		return -EINTR;
+
+	// Deallocate the remote memory
+	BUG_ON(mmap_disagg__free_rmem(current, start, len));
+	// Free all associated local DRAM cache entries.
+	BUG_ON(munmap_free_cnpages(current, start, len));
+	// Free local VMAs, etc.
+	ret = do_munmap(mm, start, len, &uf);
+
+	up_write(&mm->mmap_sem);
+
+	userfaultfd_unmap_complete(mm, &uf);
+
+	pr_syscall(KERN_DEFAULT "MUNMAP (local) - addr: 0x%lx, len: %lu, res: %d\n",
+			start, len, ret);
+	return ret;
+}
+
 int vm_munmap(unsigned long start, size_t len)
 {
-	int ret, mn_retval = -1;
+	int ret;
 	struct mm_struct *mm = current->mm;
 	LIST_HEAD(uf);
-#ifdef CONFIG_COMPUTE_NODE
-	if (current->is_remote) {
-		pr_syscall(KERN_DEFAULT "MUNMAP (before lock) - start: %lx, len: %lu, cpu: %d\n", start, len, smp_processor_id());
-	}
-#endif
-	if (down_write_killable(&mm->mmap_sem)) {	
-		return -EINTR;
-	}
-#ifdef CONFIG_COMPUTE_NODE
-	if (current->is_remote)
-	{
-		/*
-        struct vm_area_struct *vma = find_vma(current->mm, addr);
-		if (current->is_mind_binary && vma && vma->vm_start <= addr && vma->vm_file)
-		{
-			;//skip for file mapping
-		}else{
-        */
-			mn_retval = disagg_munmap(current, start, len);
-		//}
 
-		// DEBUG_print_vma(mm);
-		pr_syscall(KERN_DEFAULT "MUNMAP (remote) - res: %d cpu: %d\n", mn_retval, smp_processor_id());
-	}
-#endif
+	if (current->is_remote)
+		return __disagg_vm_munmap(start, len);
+
+	if (down_write_killable(&mm->mmap_sem))
+		return -EINTR;
 	ret = do_munmap(mm, start, len, &uf);
 	up_write(&mm->mmap_sem);
+
 	userfaultfd_unmap_complete(mm, &uf);
-#ifdef CONFIG_COMPUTE_NODE
-	if (current->is_remote)
-	{
-		pr_syscall(KERN_DEFAULT "MUNMAP (local) - addr: 0x%lx, len: %lu, res: %d\n",
-				   start, len, ret);
-		if (mn_retval)
-			ret = mn_retval;
-	}
-#endif
+
 	return ret;
 }
 EXPORT_SYMBOL(vm_munmap);

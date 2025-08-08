@@ -1658,19 +1658,6 @@ static int exec_binprm(struct linux_binprm *bprm)
 	return ret;
 }
 
-static int kill_itself(void)
-{
-	struct siginfo info;
-	int ret = 0;
-	memset(&info, 0, sizeof(struct siginfo));
-	info.si_signo = SIGKILL;
-	ret = send_sig_info(SIGKILL, &info, current);
-	if (ret < 0) {
-		printk(KERN_INFO "Cannot send kill signal\n");
-	}
-	return ret;
-}
-
 /*
  * sys_execve() executes a new program.
  */
@@ -1684,7 +1671,6 @@ static int do_execveat_common(int fd, struct filename *filename,
 	struct file *file;
 	struct files_struct *displaced;
 	int retval;
-	struct mm_struct *mm;
 	int will_be_remote = 0;
 
 #ifdef CONFIG_COMPUTE_NODE
@@ -1726,10 +1712,6 @@ static int do_execveat_common(int fd, struct filename *filename,
 			will_be_remote = 1;
 		else
 			pr_err("test program should not be remote at first\n");
-	}
-	else if (strcmp(tmp, EXAMPLE_PROGRAM_NAME) == 0)
-	{
-		pr_err("example program found tgid[%d] pid[%d]\n", current->tgid, current->pid);
 	}
 #endif
 
@@ -1835,39 +1817,10 @@ static int do_execveat_common(int fd, struct filename *filename,
 	// new process just started from the last exec_binprm call
 #ifdef CONFIG_COMPUTE_NODE
 	current->is_remote = will_be_remote;
-	if(current->is_remote){
-		pr_syscall(KERN_DEFAULT "execve: %s (uid:%d, pid:%d)\n",
-				current->comm, (int)current->cred->uid.val,
-				(int)current->pid);
-		mm = current->mm;
-		down_write(&mm->mmap_sem);
-		// ASID
-		mm->is_remote_mm = true;
-	 	mm->remote_asid = find_next_avail_disagg_asid(mm);
-		pr_info("MIND - EXEC | New tgid[%u] for ASID[%u]\n", current->tgid, mm->remote_asid);
-
-		// TODO: we may do something before the process starts
-		if (mm->start_brk - mm->brk)
-		{
-			// process already wrote down something in heap
-			printk(KERN_DEFAULT "Kill process: already wrote something\n");
-			kill_itself();
-		}else{
-			if(cn_notify_exec(current))
-			{
-				printk(KERN_DEFAULT "Kill process: fail to notify remote memory\n");
-				kill_itself();
-			}
-		}
-		
-		up_write(&mm->mmap_sem);
-	}
-	/*
-	else if (current->is_example) {
-		DEBUG_print_vma(mm);
-	}
-	*/
+	if(current->is_remote)
+		 disagg_exec(current);
 #endif
+
 	current->fs->in_exec = 0;
 	current->in_execve = 0;
 	membarrier_execve(current);

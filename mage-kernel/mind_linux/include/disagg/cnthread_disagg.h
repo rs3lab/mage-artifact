@@ -52,10 +52,7 @@
 #define CNTHREAD_MAX_CACHE_BLOCK_NUMBER (262144UL)
 
 #define CNTHREAD_CACHELINE_MASK PAGE_MASK
-// "0.9" := evictor threads will activate when local memory is 90% occupied. 
-// Please keep it as low as possible...reduces evictor threads "overshooting". 
-// TODO(yash): try setting this to 0.5 after the current AE replications are due. 
-#define CNTHREAD_CACHED_PRESSURE        0.5
+#define CNTHREAD_CACHED_PRESSURE        0.9
 #define CNTHREAD_HEARTBEAT_IN_MS 1000
 // Reclaim operates while holding mmap_sem.
 // Periodically, it shoud drop mmap_sem (so `munmap`, `mmap` can make forward progress).
@@ -153,6 +150,7 @@ enum cnthread_reclaim_victim_status_code {
     CNTHREAD_RECLAIM_VICTIM_SKIP_ALREADY_FREED,
     CNTHREAD_RECLAIM_VICTIM_SKIP_UNUSED,
     CNTHREAD_RECLAIM_VICTIM_SKIP_NONANON,
+    CNTHREAD_RECLAIM_VICTIM_SKIP_INVALID_CNMAP,
 };
 
 struct cnthread_reclaim_victim
@@ -217,7 +215,7 @@ int put_all_cnpages(u16 tgid);
 int cnthread_add_pte_to_list_with_cnpage(
     pte_t * pte, spinlock_t *pte_lock, unsigned long address, struct vm_area_struct *vma,
     struct cnthread_page *cnpage, int new_page);
-int cnthread_clean_up_non_existing_entry(u16 tgid, struct mm_struct *mm);
+int free_orphaned_cnpages(u16 tgid, struct mm_struct *mm);
 
 // Located in TLB and memory code.
 extern void disagg_flush_tlb_start(struct cnthread_reclaim_victim_batch *batch);
