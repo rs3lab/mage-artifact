@@ -9,8 +9,8 @@ cd $MIND_ROOT/scripts/cn
 
 # PARSE ARGUMENTS
 
-if [[ $# -ne 4 ]]; then 
-	echo 'prg_name cn bs mem'
+if [[ $# -ne 5 ]]; then 
+	echo 'prg_name cn bs mem_mib mem_threshhold'
 	exit 1
 fi
 

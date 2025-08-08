@@ -55,7 +55,7 @@
 // "0.9" := evictor threads will activate when local memory is 90% occupied. 
 // Please keep it as low as possible...reduces evictor threads "overshooting". 
 // TODO(yash): try setting this to 0.5 after the current AE replications are due. 
-#define CNTHREAD_CACHED_PRESSURE        0.9
+#define CNTHREAD_CACHED_PRESSURE        0.5
 #define CNTHREAD_HEARTBEAT_IN_MS 1000
 // Reclaim operates while holding mmap_sem.
 // Periodically, it shoud drop mmap_sem (so `munmap`, `mmap` can make forward progress).
