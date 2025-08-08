@@ -32,7 +32,6 @@ function run-test () {
   sleep 5s
 
   # run test-one; time to start the application!
-  # TODO: Replace this hardcoded path with something based on $MIND_ROOT. 
   ssh $cn_control_sshname "zsh \$MIND_ROOT/apps/xsbench/test-one.zsh $cnthreads $fhthreads $bs $lmem_mib"
 }
 
@@ -50,5 +49,5 @@ for lmem_mib in $lmems_mib; do
 	fi
 
 	run-test $cn $fh $bs $lmem_mib
-	fetch-test-logs "cn$cn-fh$fh-bs$bs-lmem_mib$lmem_mib-logs"
+	fetch-test-logs "cn$cn-fh$fh-bs$bs-lmem_mib$lmem_mib-logs.1"
 done
