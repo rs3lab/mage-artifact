@@ -7,8 +7,6 @@ fi
 source $MIND_ROOT/scripts/config.sh
 cd $MIND_ROOT/apps/sequential-read
 
-echo "Execute this on the VM host only!"
-
 # HELPER FUNCTIONS
 
 function set-params () {

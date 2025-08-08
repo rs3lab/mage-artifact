@@ -17,5 +17,3 @@ ssh $cn_control_sshname \
 # RUN THE TESTS
 echo "Running tests!"
 ./kron-memscan.test-ssh.zsh
-
-# TODO: Parse the data
