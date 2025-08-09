@@ -68,10 +68,8 @@
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 
-#ifdef CONFIG_COMPUTE_NODE
-extern int disagg_exit(struct task_struct *tsk);
-extern int disagg_clear_req_buffer(struct task_struct *tsk);
-#endif
+#include <disagg/print_disagg.h>
+#include <disagg/network_disagg.h>
 
 static void __unhash_process(struct task_struct *p, bool group_dead)
 {
@@ -492,8 +490,6 @@ assign_new_owner:
 }
 #endif /* CONFIG_MEMCG */
 
-#include <disagg/print_disagg.h>
-
 /*
  * Turn us into a lazy TLB process if we
  * aren't already..
@@ -876,9 +872,19 @@ void __noreturn do_exit(long code)
 			}
 			tsk->clear_child_tid = NULL;
 		}
-		// print_remote_syscall_only("After clear_child_tid");
-		// Now we can send exit msg to ctrl
-		disagg_exit(tsk);
+
+		// Dealloc used RDMA QPs, we don't need them anymore.
+        BUG_ON(unlikely(mind_rdma_put_qp_handle_fn == NULL));
+        mind_rdma_put_qp_handle_fn(tsk->qp_handle);
+
+		//TODO clear req buf if cnt == 0?
+		// clear cache
+
+		// return ASID
+		BUG_ON(!tsk->mm->is_remote_mm);
+		put_disagg_asid(tsk->mm->remote_asid);
+
+		pr_info("EXIT: tgid %d\n", tsk->tgid);
 	}
 #endif
 	exit_mm();	// Cache will be cleared inside exit_mm
