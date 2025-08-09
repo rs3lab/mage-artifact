@@ -8,7 +8,7 @@
 #define TEST_PROGRAM_NAME "test_mltthrd"
 #define TEST_PROGRAM_DIGIT 12
 
-#define MIND_RMEM_SIZE_MIB    8192ULL
+#define MIND_RMEM_SIZE_MIB    32768ULL
 
 // NOTE: switch control plane may have different limit for total number of processes in a cluster
 #define MAX_PROCESS_BUCKET_SIZE 1024   
