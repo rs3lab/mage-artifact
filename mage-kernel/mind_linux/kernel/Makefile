@@ -13,7 +13,7 @@ obj-y = fork.o exec_domain.o panic.o \
 	    async.o range.o smpboot.o ucount.o
 
 obj-$(CONFIG_COMPUTE_NODE) += network_disagg.o \
-	exit_disagg.o cnthread_disagg.o cnthread_kern_disagg.o \
+	cnthread_disagg.o cnthread_kern_disagg.o \
 	range_lock_disagg.o fork_disagg.o profile_disagg.o cpu_alloc_disagg.o
 
 obj-$(CONFIG_MODULES) += kmod.o
