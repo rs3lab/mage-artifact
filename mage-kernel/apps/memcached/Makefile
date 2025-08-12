@@ -29,7 +29,7 @@ CFLAGS += -g -ggdb
 #LDFLAGS = -shared
 
 memcached: $(sources)
-	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $(sources) -levent -lm -DSLEEP_TIME=$(stime)
+	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $(sources) -levent -lm -DSLEEP_TIME=$(SLEEP_TIME)
 
 clean:
 	rm -f bootfs.manifest usr.manifest module.pyc memcached

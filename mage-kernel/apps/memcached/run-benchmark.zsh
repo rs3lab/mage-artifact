@@ -14,8 +14,7 @@ function set-params () {
 	local sleep_time=$2
 
 	# rebuild application w/ new params
-	ssh $cn_control_sshname "zsh sed -i 's/#define SLEEP_TIME .*/#define SLEEP_TIME $sleep_time/' $MIND_ROOT/apps/memcached/src/test_config.h"
-	ssh $cn_control_sshname "make -C $MIND_ROOT/apps/memcached/"
+	ssh $cn_control_sshname "SLEEP_TIME=$sleep_time make -C \$MIND_ROOT/apps/memcached/"
 
 	# rebuild kernel w/ new params
 	ssh $cn_control_sshname set-params 'memcached' $cn $bs $lmem_mib 0.8
