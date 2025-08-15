@@ -5,7 +5,7 @@ if [[ -z $MIND_ROOT ]]; then
         exit 1
 fi
 source $MIND_ROOT/scripts/config.sh
-cd $MIND_ROOT/apps/metis
+cd $MIND_ROOT/apps/metis-mapreduce
 
 if [[ $# -ne 4 ]]; then
         echo 'args: cn, fh, bs, lmem_mib!'
