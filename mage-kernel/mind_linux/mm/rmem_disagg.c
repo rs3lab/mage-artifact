@@ -20,6 +20,7 @@
 #include <disagg/profile_points_disagg.h>
 
 #define MIND_RMEM_SIZE_B (MIND_RMEM_SIZE_MIB << 20)
+#define LOWEST_ALLOWED_RADDR (PAGE_SIZE)
 
 struct rmem_mapping {
 	struct list_head list;
@@ -51,6 +52,33 @@ static void __maybe_unused print_rmaps(void)
 #else
 static void __maybe_unused print_rmaps(void) {}
 #endif
+
+// Assumes that the caller holds rmem_map_lock
+static void __maybe_unused sanity_check_rmaps()
+{
+	struct rmem_mapping *cur; 
+	u64 highest_seen_raddr = LOWEST_ALLOWED_RADDR; 
+
+	list_for_each_entry(cur, &rmem_maps, list) {
+		if (cur->size == 0) { 
+			pr_err("rmap with zero size found!\n"); 
+			pr_info("rmap:\t(0x%llx - 0x%llx)->\t(0x%llx - 0x%llx) size=0x%llx\n",
+					cur->cn_va, cur->cn_va + cur->size,
+					cur->mn_va, cur->mn_va + cur->size, cur->size);
+			print_rmaps(); 
+			BUG(); 
+		}
+
+		if (cur->cn_va + cur->size < cur->cn_va || cur->mn_va + cur->size < cur->mn_va) { 
+			pr_err("rmap with overflowing size found!\n"); 
+			pr_info("rmap:\t(0x%llx - 0x%llx)->\t(0x%llx - 0x%llx) size=0x%llx\n",
+					cur->cn_va, cur->cn_va + cur->size,
+					cur->mn_va, cur->mn_va + cur->size, cur->size);
+			print_rmaps(); 
+			BUG(); 
+		}
+	}
+}
 
 // Suppose you have a map (a, c). Now, you want to shrink the map to (a, b) where b < c. 
 // This function modifies the map to do that for you. 
@@ -110,17 +138,16 @@ static void update_cnmap_layer(void)
 static u64 find_free_rmem_chunk(size_t size)
 {
 	struct rmem_mapping *cur, *prev = NULL;
-	const u64 lowest_allowed = PAGE_SIZE; // start default alloc at page 1
 
 	if (list_empty(&rmem_maps))
-		 return lowest_allowed; 
+		 return LOWEST_ALLOWED_RADDR; 
 
 	cur = list_first_entry(&rmem_maps, struct rmem_mapping, list);
 
 	// Try to allocate the new memory after the first page.
-	if (cur->mn_va >= lowest_allowed + size) {
+	if (cur->mn_va >= LOWEST_ALLOWED_RADDR + size) {
 		pr_rmem_alloc("rmem alloc: prepending rmem alloc to rmem heap!\n");
-		 return lowest_allowed;
+		 return LOWEST_ALLOWED_RADDR;
 	}
 
 	// Assume the list is sorted by mn_va (aka beginning of remote mem region)
@@ -129,7 +156,7 @@ static u64 find_free_rmem_chunk(size_t size)
 		pr_rmem_alloc("cur:  0x%llx - 0x%llx\n", cur->mn_va, cur->mn_va + cur->size);
 
 		// The first address we'd be allowed to start at...
-		start = (prev == NULL) ? lowest_allowed : prev->mn_va + prev->size;
+		start = (prev == NULL) ? LOWEST_ALLOWED_RADDR : prev->mn_va + prev->size;
 		if (start + size <= cur->mn_va) {
 			pr_rmem_alloc("found empty slot at:  0x%llx - 0x%llx\n", start, start + size);
 			return start;
@@ -354,5 +381,52 @@ int rmem_free_all(void)
 	mutex_unlock(&rmem_map_lock);
 	return 0;
 }
+
+static int __init test_rmem_allocator(void)
+{
+	u16 tgid = 0; 
+
+	// Create a single allocation. Where does it appear?
+	pr_yash("Test 1\n");
+	rmem_alloc(tgid, 0x1000, 0x1000);
+	print_rmaps();
+
+	// Delete the full allocation. Does it disappear?
+	pr_yash("Test 2\n");
+	rmem_free(tgid, 0x1000, 0x1000);
+	print_rmaps();
+
+	// Create contiguous allocations. Where do they appear?
+	pr_yash("Test 3\n");
+	rmem_alloc(tgid, 0x0000, 0x4000);
+	rmem_alloc(tgid, 0x4000, 0x4000);
+	print_rmaps();
+
+	// hole in the double-allocations. Do they disappear? 
+	pr_yash("Test 4: snip both\n");
+	rmem_free(tgid, 0x2000, 0x4000); 
+	print_rmaps(); 
+
+	// Delete the second allocation _only_. Does only it disappear?
+	pr_yash("Test 4: delete all fragments\n");
+	rmem_free(tgid, 0x0000, 0x9000);
+	print_rmaps();
+
+	// Can I delete only part of the first allocation?
+	pr_yash("Test 5: punch a hole\n");
+	rmem_alloc(tgid, 0x4000, 0x4000); 
+	rmem_free(tgid, 0x5000, 0x2000);
+	print_rmaps();
+
+	// Delete part of the first allocation.
+	// Clear all mappings.
+	pr_yash("Test 6: delete all\n");
+	rmem_free_all(); 
+	print_rmaps();
+
+	return 0;
+}
+late_initcall(test_rmem_allocator);
+
 
 /* vim: set tw=99 ts=8 sw=8 noexpandtab */
