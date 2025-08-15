@@ -377,7 +377,7 @@ int rmem_free_all(void)
 	return 0;
 }
 
-static int __init test_rmem_allocator(void)
+static int __init __maybe_unused test_rmem_allocator(void)
 {
 	u16 tgid = 0; 
 
@@ -421,7 +421,7 @@ static int __init test_rmem_allocator(void)
 
 	return 0;
 }
-late_initcall(test_rmem_allocator);
+//late_initcall(test_rmem_allocator);
 
 
 /* vim: set tw=99 ts=8 sw=8 noexpandtab */
