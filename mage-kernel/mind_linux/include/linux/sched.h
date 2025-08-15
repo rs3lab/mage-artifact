@@ -681,6 +681,10 @@ struct task_struct {
 	// a tree node (=> fast tree walks, no false sharing).
 	atomic_t                        holds_range_lock;
 
+	// A quick hack to save us some math. This points to the `struct cpu_slot` that this core
+	// currently occupies. See cpu_alloc_disagg.c
+	void 							*disagg_assigned_core; 
+
 #ifdef CONFIG_CC_STACKPROTECTOR
 	/* Canary value for the -fstack-protector GCC feature: */
 	unsigned long			stack_canary;

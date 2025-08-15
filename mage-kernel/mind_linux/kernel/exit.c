@@ -70,6 +70,7 @@
 
 #include <disagg/print_disagg.h>
 #include <disagg/network_disagg.h>
+#include <disagg/cpu_alloc_disagg.h>
 
 static void __unhash_process(struct task_struct *p, bool group_dead)
 {
@@ -876,6 +877,9 @@ void __noreturn do_exit(long code)
 		// Dealloc used RDMA QPs, we don't need them anymore.
         BUG_ON(unlikely(mind_rdma_put_qp_handle_fn == NULL));
         mind_rdma_put_qp_handle_fn(tsk->qp_handle);
+
+		// Free pinned core for another disagg task to use. 
+		disagg_unpin_fhthread_from_core(tsk); 
 
 		//TODO clear req buf if cnt == 0?
 		// clear cache

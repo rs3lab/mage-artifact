@@ -5,6 +5,7 @@
 
 void init_disagg_core_pinning(int max_threads_in_use);
 int disagg_pin_fhthread_to_core(struct task_struct *t);
+void disagg_unpin_fhthread_from_core(struct task_struct *t); 
 int disagg_pin_cnthread_to_core(struct task_struct *t);
 void disagg_print_core_assignments(void);
 

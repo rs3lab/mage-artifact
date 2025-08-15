@@ -88,6 +88,7 @@ int disagg_pin_fhthread_to_core(struct task_struct *t)
         if (first_slot->type == DISAGG_FHTHREAD && !first_slot->occupied) {
             int cpu = DISAGG_FIRST_ASSIGNABLE_CPU + (2 * i);
             first_slot->occupied = true;
+            t->disagg_assigned_core = first_slot; 
             __pin_fhthread(t, cpu);
             return cpu;
         }
@@ -95,6 +96,7 @@ int disagg_pin_fhthread_to_core(struct task_struct *t)
         if (second_slot->type == DISAGG_FHTHREAD && !second_slot->occupied) {
             int cpu = DISAGG_FIRST_ASSIGNABLE_CPU + (2 * i) + 1;
             second_slot->occupied = true;
+            t->disagg_assigned_core = second_slot; 
             __pin_fhthread(t, cpu);
             return cpu;
         }
@@ -102,6 +104,15 @@ int disagg_pin_fhthread_to_core(struct task_struct *t)
 
     disagg_print_core_assignments();
     BUG(); // We ran out of CPUs.
+}
+
+// Called when the thread exits to relinquish the core. 
+void disagg_unpin_fhthread_from_core(struct task_struct *t)
+{
+    struct cpu_slot *slot = t->disagg_assigned_core; 
+    BUG_ON(!slot); 
+    BUG_ON(!slot->occupied); 
+    slot->occupied = false; 
 }
 
 int disagg_pin_cnthread_to_core(struct task_struct *t)
