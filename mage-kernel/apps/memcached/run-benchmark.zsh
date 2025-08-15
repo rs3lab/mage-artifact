@@ -39,11 +39,12 @@ function run-test () {
 }
 
 cn=4
-fh=24
+fh=12
 bs=256
 
 lmem_mibs=(20480 18432 16384 14336 12288 10240 8192 8000)
-sleep_times=(200 100 80 50 20 5 0 0)
+lmem_mibs=(20480 18432 16384 14336 12288 10240 8000 7000 6000)
+sleep_times=(30 25 15 12 10 5 0 0 0)
 
 # zip("lmem_mibs", "sleep_times")
 for (( i = 1; i <= $#lmem_mibs; i++ )); do 
@@ -55,8 +56,6 @@ for (( i = 1; i <= $#lmem_mibs; i++ )); do
 	fi
 
 	set-params $lmem_mib $sleep_time
-	echo 'yee'
-	exit 0
 
 	run-test $cn $fh $bs $lmem_mib $sleep_time
 	fetch-test-logs "cn$cn-fh$fh-bs$bs-lmem_mib$lmem_mib-sleep$sleep_time-logs.1"
