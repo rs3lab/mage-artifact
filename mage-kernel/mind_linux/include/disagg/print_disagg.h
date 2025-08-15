@@ -8,7 +8,7 @@
 // #define PRINT_DUMMY_RDMA
 // #define PRINT_PAGE_FAULT
 // #define PRINT_CNTHREAD_RECLAIM
-// #define PRINT_RMEM_ALLOC
+#define PRINT_RMEM_ALLOC
 #define PRINT_MAPS
 // #define PRINT_LOCKS
 #define PRINT_SYSCALLS
