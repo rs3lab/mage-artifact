@@ -17,7 +17,7 @@ function set-params () {
 	local lmem_mib=$1
 
 	# rebuild kernel w/ new params
-	ssh $cn_control_sshname set-params 'wrmem' $cn $bs $lmem_mib 0.8
+	ssh $cn_control_sshname set-params 'gups-hotset-move' $cn $bs $lmem_mib 0.8
 	manager cn allonly
 	sleep 1s
 
