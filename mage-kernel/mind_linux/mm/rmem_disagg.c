@@ -33,7 +33,6 @@ static DEFINE_MUTEX(rmem_map_lock);
 // This list should remain sorted by mn_va.
 static LIST_HEAD(rmem_maps);
 
-
 #ifdef PRINT_RMEM_ALLOC
 static void __maybe_unused print_rmaps(void)
 {
@@ -52,6 +51,26 @@ static void __maybe_unused print_rmaps(void)
 #else
 static void __maybe_unused print_rmaps(void) {}
 #endif
+
+// Suppose you have a map (a, c). Now, you want to shrink the map to (a, b) where b < c. 
+// This function modifies the map to do that for you. 
+static void decrease_upper_bound(struct rmem_mapping *map, u64 new_end) 
+{
+	u64 shrinking_by = new_end - (map->cn_va + map->size); 
+
+	map->size -= shrinking_by; 
+}
+
+// Suppose you have a map (a, c). Now, you want to shrink the map to (b, c) where a < b. 
+// This function modifies the map to do that for you. 
+static void increase_lower_bound(struct rmem_mapping *map, u64 new_start) 
+{
+	u64 shrinking_by = new_start - (map->cn_va); 
+
+	map->cn_va += shrinking_by; 
+	map->mn_va += shrinking_by; 
+	map->size -= shrinking_by; 
+}
 
 static void init_cnmap_msg(struct rmem_mapping *rmem_map, struct mind_map_msg *cnmap)
 {
@@ -198,12 +217,14 @@ static void split_mapping(struct rmem_mapping *map, u64 hole_start, u64 hole_end
 
 	// First, shrink the first new mapping.
 	new_map_1->size = hole_start - old_map.cn_va;
+	BUG_ON(new_map_1->size == 0); 
 
 	// Then, shrink the second new mapping. This is tricker, we need to push the start up.
 	offset = hole_end - old_map.cn_va;
 	new_map_2->cn_va += offset;
 	new_map_2->mn_va += offset;
 	new_map_2->size -= offset;
+	BUG_ON(new_map_2->size == 0); 
 
 	// Add second map back into list, after the first map (which is already there). 
 	list_add(&new_map_2->list, &new_map_1->list);
@@ -230,38 +251,44 @@ static void punch_hole_in_mapping(struct rmem_mapping *map, u64 hole_start, u64 
 		pr_rmem_alloc("mapping doesn't overlap our hole\n"); 
 		return;
 	}
+	// Now, the hole and interval _must_ intersect somehow. 
 
-	// If this alloc is a subinterval of our dealloc, destroy it.
+	// If this alloc is a contained in our hole, destroy the alloc. 
 	if (hole_start <= start && end <= hole_end) {
 		pr_rmem_alloc("mapping is encompassed by our hole, delete it\n"); 
 		list_del(&map->list);
 		kfree(map);
 		return;
 	}
+	// Now, the alloc must have a remaining "valid" section. 
 
-	// Split containing allocs in two.
-	if (hole_start >= start && hole_end <= end) {
-		pr_rmem_alloc("mapping is split by our hole, split it\n"); 
-		split_mapping(map, hole_start, hole_end);
-		return;
-	}
+	if (start < hole_start) { 
+		u64 new_end; 
+		// If there are valid portions remaining on _both_ sides, split the interval. 
+		if (hole_end < end) {
+			pr_rmem_alloc("mapping is split by our hole, split it\n"); 
+			split_mapping(map, hole_start, hole_end);
+			return;
+		} 
 
-	// Shrink overlapping allocations.
-	if (hole_start < end) {
-		map->size = hole_start - map->cn_va;
-		pr_rmem_alloc("shrinking overlapping allocation to: laddr (0x%llx - 0x%llx)\n",
+		// There is a valid portion only on the left side, so truncate our interval. 
+		new_end = hole_start; 
+		decrease_upper_bound(map, new_end); 
+		pr_rmem_alloc("right-shrinking overlapping allocation to: laddr (0x%llx - 0x%llx)\n",
 			map->cn_va, map->cn_va + map->size); 
 		return;
 	}
-	if (hole_end > start) {
-		u64 offset = hole_end - start;
-		map->cn_va += offset;
-		map->mn_va += offset;
-		map->size -= offset;
+	// By this point, there must be no valid portion to the left of the hole. 
+
+	// If there's a valid portion to the right of the hole, then truncate our interval. 
+	if (hole_end < end) { 
+		u64 new_start = hole_end; 
+		increase_lower_bound(map, new_start); 
 		pr_rmem_alloc("shrinking overlapping allocation to: laddr (0x%llx - 0x%llx)\n",
 			map->cn_va, map->cn_va + map->size); 
 		return; 
 	}
+
 	WARN_ON_ONCE(true);
 }
 
