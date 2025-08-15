@@ -854,7 +854,7 @@ static int add_dummy_memory_node(void)
 	u32 rkey = 0;
 	u64 addr = 0x100000000; // y: Set a 4 GiB memory offset. The CN should
 				// subtract this.
-	u64 size = 34359738368UL;
+	u64 size = 35433480192UL; // 33 GiB
 	u64 *ack_buf = calloc(NUM_PARALLEL_CONNECTION, sizeof(*ack_buf));;
 	struct socket *sk = calloc(1, sizeof(*sk));
 	struct dest_info *added_mn = ctrl_set_node_info(node_id, lid,

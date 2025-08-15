@@ -8,7 +8,7 @@
 #define TEST_PROGRAM_NAME "memcached"
 #define TEST_PROGRAM_DIGIT 9
 
-#define MIND_RMEM_SIZE_MIB    32768ULL
+#define MIND_RMEM_SIZE_MIB    33792ULL
 
 // NOTE: switch control plane may have different limit for total number of processes in a cluster
 #define MAX_PROCESS_BUCKET_SIZE 1024   
