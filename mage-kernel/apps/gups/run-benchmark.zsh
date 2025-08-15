@@ -10,7 +10,7 @@ cd $MIND_ROOT/apps/gups
 echo "Execute this on the VM host only!"
 
 # COMPILE THE BENCHMARK APPLICATION.
-ssh $cn_control_sshname 'cd $MIND_ROOT/apps/gups && make'
+ssh $cn_control_sshname 'cd $MIND_ROOT/apps/gups/gups && make'
 
 # SET UP THE KERNEL W CORRECT PARAMS
 function set-params () {

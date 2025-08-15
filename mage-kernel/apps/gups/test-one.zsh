@@ -22,6 +22,7 @@ output_log="$log_root/$fh.log"
 mkdir -p $log_root
 generate-pretest-logs $cn $fh $bs $local_mem_mib
 
+export OMP_CPUS=$fh
 ./gups/gups-hotset-move $fh 160000000 35 4096 35 |& tee $output_log
 
 generate-posttest-logs $cn $fh $bs $local_mem_mib
