@@ -366,7 +366,7 @@ int mind_rdma_write_sync(void *qp_handle, void *lbuf_dma, u64 size, unsigned lon
 
 	if (wc.status != IB_WC_SUCCESS) {
 		pr_err("ib_poll_cq(laddr_dma=0x%px, raddr=0x%lx, size=0x%lx) failed with status(%d)\n", 
-			lbuf_dma, remote_addr, wc.status);
+			lbuf_dma, remote_addr, size, wc.status);
 		return -1;
 	}
 

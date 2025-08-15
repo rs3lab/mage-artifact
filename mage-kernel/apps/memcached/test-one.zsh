@@ -24,7 +24,8 @@ mkdir -p $log_root
 
 generate-pretest-logs $cn $fh $bs $local_mem_mib
 
-/usr/bin/time -v ./memcached -u root -t $fh -m20000 -v |& tee $output_log
+#/usr/bin/time -v ./memcached -u root -t $fh -m20000 -v |& tee $output_log
+/usr/bin/time -v ./memcached -u root -t $fh -m2000 -v |& tee $output_log
 
 generate-posttest-logs $cn $fh $bs $local_mem_mib
 echo "test-one: done."

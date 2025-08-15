@@ -55,6 +55,8 @@ for (( i = 1; i <= $#lmem_mibs; i++ )); do
 	fi
 
 	set-params $lmem_mib $sleep_time
+	echo 'yee'
+	exit 0
 
 	run-test $cn $fh $bs $lmem_mib $sleep_time
 	fetch-test-logs "cn$cn-fh$fh-bs$bs-lmem_mib$lmem_mib-sleep$sleep_time-logs.1"

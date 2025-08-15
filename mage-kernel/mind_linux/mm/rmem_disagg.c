@@ -100,7 +100,7 @@ static u64 find_free_rmem_chunk(size_t size)
 
 	// Try to allocate the new memory after the first page.
 	if (cur->mn_va >= lowest_allowed + size) {
-		pr_rmem_alloc("rmem alloc: shortcut path triggered!\n");
+		pr_rmem_alloc("rmem alloc: prepending rmem alloc to rmem heap!\n");
 		 return lowest_allowed;
 	}
 
@@ -121,7 +121,7 @@ static u64 find_free_rmem_chunk(size_t size)
 
 	// Try to allocate memory immediately after our last alloc.
 	if (prev->mn_va + prev->size + size < MIND_RMEM_SIZE_B) {
-		 pr_rmem_alloc("rmem alloc: fallback path triggered!\n");
+		 pr_rmem_alloc("rmem alloc: appending rmem chunk to rmem heap!\n");
 		 return prev->mn_va + prev->size;
 	}
 
@@ -176,7 +176,7 @@ int rmem_alloc(uint16_t tgid, u64 va, size_t size)
 
 	mutex_unlock(&rmem_map_lock);
 
-	pr_rmem_alloc("Adding cnmapping (0x%llx (len %lu))!\n", va, size);
+	pr_rmem_alloc("Added cnmapping (0x%llx (len %lu))!\n", va, size);
 	print_cnmaps();
 	print_rmaps();
 
@@ -222,12 +222,18 @@ static void punch_hole_in_mapping(struct rmem_mapping *map, u64 hole_start, u64 
 	u64 start = map->cn_va;
 	u64 end = map->cn_va + map->size;
 
+	pr_rmem_alloc("examining mapping: laddr (0x%llx - 0x%llx)\n",
+		start, end); 
+
 	// Skip non-overlapping intervals.
-	if (hole_start >= end || hole_end <= start)
-		 return;
+	if (hole_start >= end || hole_end <= start) { 
+		pr_rmem_alloc("mapping doesn't overlap our hole\n"); 
+		return;
+	}
 
 	// If this alloc is a subinterval of our dealloc, destroy it.
 	if (hole_start <= start && end <= hole_end) {
+		pr_rmem_alloc("mapping is encompassed by our hole, delete it\n"); 
 		list_del(&map->list);
 		kfree(map);
 		return;
@@ -235,6 +241,7 @@ static void punch_hole_in_mapping(struct rmem_mapping *map, u64 hole_start, u64 
 
 	// Split containing allocs in two.
 	if (hole_start >= start && hole_end <= end) {
+		pr_rmem_alloc("mapping is split by our hole, split it\n"); 
 		split_mapping(map, hole_start, hole_end);
 		return;
 	}
@@ -242,6 +249,8 @@ static void punch_hole_in_mapping(struct rmem_mapping *map, u64 hole_start, u64 
 	// Shrink overlapping allocations.
 	if (hole_start < end) {
 		map->size = hole_start - map->cn_va;
+		pr_rmem_alloc("shrinking overlapping allocation to: laddr (0x%llx - 0x%llx)\n",
+			map->cn_va, map->cn_va + map->size); 
 		return;
 	}
 	if (hole_end > start) {
@@ -249,6 +258,9 @@ static void punch_hole_in_mapping(struct rmem_mapping *map, u64 hole_start, u64 
 		map->cn_va += offset;
 		map->mn_va += offset;
 		map->size -= offset;
+		pr_rmem_alloc("shrinking overlapping allocation to: laddr (0x%llx - 0x%llx)\n",
+			map->cn_va, map->cn_va + map->size); 
+		return; 
 	}
 	WARN_ON_ONCE(true);
 }
@@ -262,6 +274,9 @@ int rmem_free(u16 tgid, u64 va, size_t size)
 	u64 hole_start = va;
 	u64 hole_end = va + size;
 
+	pr_rmem_alloc("Removing rmem alloc: laddr (0x%llx - 0x%llx)!\n", 
+		hole_start, hole_end); 
+
 	mutex_lock(&rmem_map_lock);
 
 	list_for_each_entry_safe(cur, tmp, &rmem_maps, list) {
@@ -274,8 +289,9 @@ int rmem_free(u16 tgid, u64 va, size_t size)
 	update_cnmap_layer();
 	mutex_unlock(&rmem_map_lock);
 
-	pr_rmem_alloc("Removing cnmapping (0x%llx (len 0x%lx)!\n", va, size);
+	pr_rmem_alloc("Removed cnmapping (0x%llx (len 0x%lx)!\n", va, size);
 	print_cnmaps();
+	print_rmaps();
 
 	return 0;
 }
