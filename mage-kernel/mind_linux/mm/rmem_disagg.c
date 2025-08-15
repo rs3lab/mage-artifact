@@ -235,11 +235,10 @@ int rmem_alloc(uint16_t tgid, u64 va, size_t size)
 // - Caller holds rmem_map_lock.
 static void split_mapping(struct rmem_mapping *map, u64 hole_start, u64 hole_end)
 {
-	struct rmem_mapping old_map = *map;
 	struct rmem_mapping *new_map_1 = map;
 	struct rmem_mapping *new_map_2 = kzalloc(sizeof(*map), GFP_KERNEL);
-	u64 offset;
 	BUG_ON(!new_map_2);
+	memcpy(new_map_2, new_map_1, sizeof(*new_map_1)); 
 
 	// First, shrink the first new mapping.
 	decrease_upper_bound(new_map_1, hole_start); 
