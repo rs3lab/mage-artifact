@@ -83,7 +83,7 @@ static void __maybe_unused sanity_check_rmaps(void)
 // This function modifies the map to do that for you. 
 static void decrease_upper_bound(struct rmem_mapping *map, u64 new_end) 
 {
-	u64 shrinking_by = new_end - (map->cn_va + map->size); 
+	u64 shrinking_by = (map->cn_va + map->size) - new_end; 
 
 	map->size -= shrinking_by; 
 }
@@ -242,14 +242,11 @@ static void split_mapping(struct rmem_mapping *map, u64 hole_start, u64 hole_end
 	BUG_ON(!new_map_2);
 
 	// First, shrink the first new mapping.
-	new_map_1->size = hole_start - old_map.cn_va;
+	decrease_upper_bound(new_map_1, hole_start); 
 	BUG_ON(new_map_1->size == 0); 
 
-	// Then, shrink the second new mapping. This is tricker, we need to push the start up.
-	offset = hole_end - old_map.cn_va;
-	new_map_2->cn_va += offset;
-	new_map_2->mn_va += offset;
-	new_map_2->size -= offset;
+	// Then, increase the second new mapping. This is tricker, we need to push the start up.
+	increase_lower_bound(new_map_2, hole_end); 
 	BUG_ON(new_map_2->size == 0); 
 
 	// Add second map back into list, after the first map (which is already there). 
@@ -300,7 +297,7 @@ static void punch_hole_in_mapping(struct rmem_mapping *map, u64 hole_start, u64 
 		// There is a valid portion only on the left side, so truncate our interval. 
 		new_end = hole_start; 
 		decrease_upper_bound(map, new_end); 
-		pr_rmem_alloc("right-shrinking overlapping allocation to: laddr (0x%llx - 0x%llx)\n",
+		pr_rmem_alloc("lowering upper bound: new alloc is (0x%llx - 0x%llx)\n",
 			map->cn_va, map->cn_va + map->size); 
 		return;
 	}
