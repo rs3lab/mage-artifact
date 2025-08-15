@@ -49,10 +49,10 @@
 // (131072UL)    // 0.5 GB
 // (262144UL)    // 1 GiB
 // (524288UL)    // 2 GB
-#define CNTHREAD_MAX_CACHE_BLOCK_NUMBER (262144UL)
+#define CNTHREAD_MAX_CACHE_BLOCK_NUMBER 5242880UL
 
 #define CNTHREAD_CACHELINE_MASK PAGE_MASK
-#define CNTHREAD_CACHED_PRESSURE        0.9
+#define CNTHREAD_CACHED_PRESSURE 0.8
 #define CNTHREAD_HEARTBEAT_IN_MS 1000
 // Reclaim operates while holding mmap_sem.
 // Periodically, it shoud drop mmap_sem (so `munmap`, `mmap` can make forward progress).

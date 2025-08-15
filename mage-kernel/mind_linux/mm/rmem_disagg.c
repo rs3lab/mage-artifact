@@ -54,10 +54,9 @@ static void __maybe_unused print_rmaps(void) {}
 #endif
 
 // Assumes that the caller holds rmem_map_lock
-static void __maybe_unused sanity_check_rmaps()
+static void __maybe_unused sanity_check_rmaps(void)
 {
 	struct rmem_mapping *cur; 
-	u64 highest_seen_raddr = LOWEST_ALLOWED_RADDR; 
 
 	list_for_each_entry(cur, &rmem_maps, list) {
 		if (cur->size == 0) { 
