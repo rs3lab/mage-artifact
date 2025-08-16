@@ -1,3 +1,4 @@
+.DEFAULT: memcached
 .PHONY: module
 module: memcached
 	echo '/memcached: $${MODULE_DIR}/memcached' > usr.manifest
@@ -6,8 +7,6 @@ module: memcached
 		>> usr.manifest
 	: > bootfs.manifest
 
-src:
-	./GET
 
 sources := assoc.c cache.c daemon.c hash.c items.c memcached.c slabs.c \
 	stats.c thread.c util.c jenkins_hash.c murmur3_hash.c \
@@ -17,11 +16,22 @@ sources := $(addprefix src/, $(sources))
 
 $(sources): src
 
-CFLAGS = -std=gnu99 -static -static-libgcc -static-libstdc++ \
+CFLAGS = -std=gnu99 -levent -lpthread -lm \
+	-static -static-libgcc -static-libstdc++ \
 	-pthread -Wl,--whole-archive -lpthread -Wl,--no-whole-archive \
-	-fpie -rdynamic -DHAVE_CONFIG_H -D_GNU_SOURCE \
-	-levent -lpthread -lm 
+	-fpie -rdynamic -DHAVE_CONFIG_H -D_GNU_SOURCE
+	
 LDFLAGS = -pie
+
+# Compilation flags only
+CFLAGS = -std=gnu99 -static -static-libgcc -static-libstdc++ \
+	-pthread -fpie -rdynamic -DHAVE_CONFIG_H -D_GNU_SOURCE
+
+# Linking flags and libraries
+LDFLAGS = -pie -static -static-libgcc -static-libstdc++ \
+	-Wl,--whole-archive -lpthread -Wl,--no-whole-archive
+
+LIBS = -levent -lpthread -lm
 
 CFLAGS += -g -ggdb
 
@@ -31,7 +41,7 @@ CFLAGS += -g -ggdb
 #LDFLAGS = -shared
 
 memcached: $(sources)
-	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $(sources) -DSLEEP_TIME=$(SLEEP_TIME)
+	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $(sources) $(LIBS) -DSLEEP_TIME=$(SLEEP_TIME)
 	echo sleep time $(SLEEP_TIME)
 
 clean:
