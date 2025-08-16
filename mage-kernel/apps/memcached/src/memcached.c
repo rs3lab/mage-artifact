@@ -5635,6 +5635,7 @@ int main (int argc, char **argv) {
     drop_privileges();
 
     /* Create the main test thread */
+    printf("%d\n", N_TEST_THREADS);
     test_main_tid = test_thread_init(N_TEST_THREADS, &settings);
 
     /* enter the event loop */

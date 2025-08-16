@@ -17,9 +17,11 @@ sources := $(addprefix src/, $(sources))
 
 $(sources): src
 
-CFLAGS = -static -static-libgcc -static-libstdc++ \
-	 -pthread -Wl,--whole-archive -lpthread -Wl,--no-whole-archive \
-	 -O2 -std=gnu99 -rdynamic -DHAVE_CONFIG_H -D_GNU_SOURCE
+CFLAGS = -std=gnu99 -static -static-libgcc -static-libstdc++ \
+	-pthread -Wl,--whole-archive -lpthread -Wl,--no-whole-archive \
+	-fpie -rdynamic -DHAVE_CONFIG_H -D_GNU_SOURCE \
+	-levent -lpthread -lm 
+LDFLAGS = -pie
 
 CFLAGS += -g -ggdb
 
@@ -29,7 +31,9 @@ CFLAGS += -g -ggdb
 #LDFLAGS = -shared
 
 memcached: $(sources)
-	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $(sources) -levent -lm -DSLEEP_TIME=$(SLEEP_TIME)
+	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $(sources) -DSLEEP_TIME=$(SLEEP_TIME)
+	echo sleep time $(SLEEP_TIME)
 
 clean:
+	rm -rf upstream src
 	rm -f bootfs.manifest usr.manifest module.pyc memcached

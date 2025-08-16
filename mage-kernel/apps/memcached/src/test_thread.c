@@ -495,14 +495,12 @@ static void test_zipfian(struct test_settings *ts, int sock){
 
     get_len = raw_command(send_get.bytes, sizeof(send_get.bytes), PROTOCOL_BINARY_CMD_GET,
                         key_buffer, key_len, NULL, 0);
-    
-    //printf("Starting the benchmark for %d sleep time.\n", SLEEP_TIME);
+
     /* Start Bar */
     barrier_cross(ts->b);
+    printf("SLEEP: %d\n", SLEEP_TIME);
     for (ii = 0; ii < ts->n_requests; ii++){
         /* Generate Index following zipfian */
-        // usleep(SLEEP_TIME);
-        /*
         for (unsigned long k = 0; k < SLEEP_TIME * 1000; k++){
             asm volatile("nop");
             asm volatile("nop");
@@ -510,8 +508,6 @@ static void test_zipfian(struct test_settings *ts, int sock){
             asm volatile("nop");
             asm volatile("nop");
         }
-        */
-    
         idx = zipf_next(&ts->zs);
 
         /* Generate Op */
@@ -753,8 +749,8 @@ static void* main_test_thread(void *arg){
     /* Sort */
     qsort(latency_array, MAX_TEST_THREADS * N_TEST_REQS, sizeof(uint64_t), compare_uint64_t);
     printf("p99-latency: %lu us\n", latency_array[ts->n_test_threads * ts->n_requests / LATENCY_SAMPLE_GAP / 100]);
-
     exit(0);
+
     return NULL;
 }
 

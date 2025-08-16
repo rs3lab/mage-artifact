@@ -1,8 +1,10 @@
 #ifndef TEST_CONFIG_H
 #define TEST_CONFIG_H
 
-#define N_TEST_THREADS 24
-//#define N_TEST_THREADS 12
+#define SLEEP_TIME 0
+
+//#define N_TEST_THREADS 24
+#define N_TEST_THREADS 12
 
 #define MAX_TEST_THREADS 28
 
@@ -15,7 +17,7 @@
 //#define N_FILL_REQS 748982
 #define N_FILL_REQS 1497964
 
-#define N_TEST_REQS 1000000
+#define N_TEST_REQS 100000
 
 #define TEST_WRITE_RATIO 2  /* 0.2% percent writes */
 

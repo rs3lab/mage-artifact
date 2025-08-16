@@ -1,5 +1,9 @@
 memcached
 *.o
+.vscode/*
+*.swo
+memcached
+*.o
 bench_results
 usr.manifest
 bootfs.manifest
