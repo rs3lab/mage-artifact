@@ -836,6 +836,8 @@ int zero_rmem_region(struct task_struct *tsk, u64 addr, size_t len)
             BUG();
         }
         BUG_ON(mind_rdma_write_sync_fn(tsk->qp_handle, (void *) zero_addr_dma, PAGE_SIZE, raddr));
+        // Prevent lockups when when zeroing large remote memory regions. 
+        cond_resched(); 
     }
 
     mind_rdma_unmap_dma_fn(zero_addr_dma, PAGE_SIZE);
