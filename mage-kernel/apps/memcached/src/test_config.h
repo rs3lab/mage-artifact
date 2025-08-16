@@ -1,9 +1,6 @@
 #ifndef TEST_CONFIG_H
 #define TEST_CONFIG_H
 
-#define SLEEP_TIME 0
-
-//#define N_TEST_THREADS 24
 #define N_TEST_THREADS 12
 
 #define MAX_TEST_THREADS 28
