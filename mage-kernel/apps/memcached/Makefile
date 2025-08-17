@@ -45,5 +45,4 @@ memcached: $(sources)
 	echo sleep time $(SLEEP_TIME)
 
 clean:
-	rm -rf upstream src
 	rm -f bootfs.manifest usr.manifest module.pyc memcached
