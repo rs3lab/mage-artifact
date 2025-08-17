@@ -14,7 +14,7 @@ function set-params () {
 	local sleep_time=$2
 
 	# rebuild application w/ new params
-	ssh $cn_control_sshname "SLEEP_TIME=$sleep_time make -C \$MIND_ROOT/apps/memcached/"
+	ssh $cn_control_sshname "SLEEP_TIME=$sleep_time make -C \$MIND_ROOT/apps/memcached/ memcached"
 
 	# rebuild kernel w/ new params
 	ssh $cn_control_sshname set-params 'memcached' $cn $bs $lmem_mib 0.8
@@ -35,15 +35,18 @@ function run-test () {
   local sleep_time=$5
 
   # run test-one; time to start the application!
-  ssh $cn_control_sshname "zsh \$MIND_ROOT/apps/memcached/test-one.zsh $cnthreads $fhthreads $bs $lmem_mib $sleep_time"
+  timeout 10m \
+  	ssh $cn_control_sshname "zsh \$MIND_ROOT/apps/memcached/test-one.zsh $cnthreads $fhthreads $bs $lmem_mib $sleep_time"
 }
 
 cn=4
 fh=12
 bs=256
 
-lmem_mibs=(20480 18432 16384 14336 12288 10240 8000 7000 6000)
-sleep_times=(30 25 15 12 10 5 0 0 0)
+lmem_mibs=(12288)
+sleep_times=(10)
+#lmem_mibs=(20480 18432 16384 14336 12288 10240 8000 7000 6000)
+#sleep_times=(30 25 15 12 10 5 0 0 0)
 
 # zip("lmem_mibs", "sleep_times")
 for (( i = 1; i <= $#lmem_mibs; i++ )); do 
@@ -55,7 +58,6 @@ for (( i = 1; i <= $#lmem_mibs; i++ )); do
 	fi
 
 	set-params $lmem_mib $sleep_time
-
 	run-test $cn $fh $bs $lmem_mib $sleep_time
 	fetch-test-logs "cn$cn-fh$fh-bs$bs-lmem_mib$lmem_mib-sleep$sleep_time-logs.1"
 done
