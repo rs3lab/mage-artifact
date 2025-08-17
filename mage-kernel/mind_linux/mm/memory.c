@@ -4186,14 +4186,6 @@ static int handle_pte_fault(struct vm_fault *vmf)
 	if (vmf->flags & FAULT_FLAG_WRITE) {
 		if (!pte_write(entry)){
 			ret = do_wp_page(vmf);
-#ifdef CONFIG_COMPUTE_NODE
-			if (current->is_remote && vmf->pte)
-			{
-				// DEBUG_print_vma(mm);
-				printk(KERN_DEFAULT "CN - fault handler: do_wp_page - addr: 0x%lx, pte_val: 0x%lx, ret: %d\n",
-					vmf->address, (unsigned long)vmf->pte->pte, ret);
-			}
-#endif
 			return ret;
 		}
 		entry = pte_mkdirty(entry);
