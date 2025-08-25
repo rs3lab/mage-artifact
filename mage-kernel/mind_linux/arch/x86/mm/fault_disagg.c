@@ -72,19 +72,19 @@ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
 extern void DEBUG_print_vma(struct mm_struct *mm);
 
 DEFINE_PP(FH_total);
-// DEFINE_PP(FH_init_vma);
-// DEFINE_PP(FH_rangelock);
-// DEFINE_PP(FH_get_pte);
-// DEFINE_PP(FH_rdma);
-// DEFINE_PP(FH_restore_data_page);
-// DEFINE_PP(FH_cleanup);
-// DEFINE_PP(FH_wait_for_free_page);
-// DEFINE_PP(FH_linux_fh_);
-// DEFINE_PP(FH_give_up_count);
+DEFINE_PP(FH_init_vma);
+DEFINE_PP(FH_rangelock);
+DEFINE_PP(FH_get_pte);
+DEFINE_PP(FH_rdma);
+DEFINE_PP(FH_restore_data_page);
+DEFINE_PP(FH_cleanup);
+DEFINE_PP(FH_wait_for_free_page);
+DEFINE_PP(FH_linux_fh_);
+DEFINE_PP(FH_give_up_count);
 
 // pf := "page fault"
-// DEFINE_PP(FH_pf_not_present_count);
-// DEFINE_PP(FH_pf_present_count);
+DEFINE_PP(FH_pf_not_present_);
+DEFINE_PP(FH_pf_present_);
 
 // Not just for disagg faults. Counts _all_ faults.
 
@@ -329,7 +329,7 @@ static int prepare_data_page(
 	 */
 	if (!pte_present(*ptep)) // read errors
 	{
-		// PP_INCREMENT(FH_pf_not_present_count);
+		PP_INCREMENT(FH_pf_not_present_);
 		pr_pgfault("\tpte not present addr: %lx, pte: %llx, pte_val: %lx, mm: %llx\n",
 				address, (u64)ptep, pte_val(*ptep), (u64)mm);
 
@@ -352,7 +352,7 @@ static int prepare_data_page(
 	}
 	else if (pte_present(*ptep) && !pte_write(*ptep))
 	{
-		// PP_INCREMENT(FH_pf_present_count);
+		PP_INCREMENT(FH_pf_present_);
 
 		pr_pgfault("\tpte present & not writable "
 				"addr: %lx, pte: %llx, pte_val: %lx, mm: %llx\n",
@@ -568,13 +568,13 @@ void do_disagg_page_fault(struct task_struct *tsk, struct pt_regs *regs,
 	bool __maybe_unused wait_for_free_page = false;
 
 	PP_STATE(FH_total);
-	// PP_STATE(FH_init_vma);
-	// PP_STATE(FH_get_pte);
+	PP_STATE(FH_init_vma);
+	PP_STATE(FH_get_pte);
 	// PP_STATE(FH_prepare_page);
-	// PP_STATE(FH_restore_data_page);
+	PP_STATE(FH_restore_data_page);
 	// PP_STATE(FH_pdp);
-	// PP_STATE(FH_wait_for_free_page);
-	// _PP_TIME(FH_wait_for_free_page) = -1; // make compiler happy (uninitialized var warning).
+	PP_STATE(FH_wait_for_free_page);
+	_PP_TIME(FH_wait_for_free_page) = -1; // make compiler happy (uninitialized var warning).
 
 	PP_ENTER(FH_total);
 
@@ -599,7 +599,7 @@ void do_disagg_page_fault(struct task_struct *tsk, struct pt_regs *regs,
 	}
 
 retry:
-	// PP_ENTER(FH_init_vma);
+	PP_ENTER(FH_init_vma);
 	/*
 	 * When running in the kernel we expect faults to occur only to
 	 * addresses in user space.  All other faults represent errors in
@@ -663,12 +663,12 @@ retry:
 		int free_list_empty;
 		pte_t *ptep;
 		// PP_STATE(FH_rangelock);
-		// PP_STATE(FH_cleanup);
+		PP_STATE(FH_cleanup);
 
 		if (!vma || (vma->vm_start > address))
 			 vma = NULL;
 
-		// PP_EXIT(FH_init_vma);
+		PP_EXIT(FH_init_vma);
 
 		// PHASE 1: Lock the address region. Obtain and lock the PTE.
 
@@ -678,7 +678,7 @@ retry:
 				(address & PAGE_MASK), (address & PAGE_MASK) + PAGE_SIZE, &pgfault_lock);
 		// PP_EXIT(FH_rangelock);
 
-		// PP_ENTER(FH_get_pte);
+		PP_ENTER(FH_get_pte);
 		pte_lock = NULL;
 		ptep = get_pte_and_pte_lock(mm, (address & PAGE_MASK), &pte_lock);
 		// Could we get PTE?
@@ -687,7 +687,7 @@ retry:
 		BUG_ON(ptep != find_pte_from_reg(address));
 
 		spin_lock(pte_lock);
-		// PP_EXIT(FH_get_pte);
+		PP_EXIT(FH_get_pte);
 
 		// Check: Did another thread already solve this?
 		if (  (!(error_code & X86_PF_WRITE) && pte_present(*ptep)) // read request
@@ -699,8 +699,8 @@ retry:
 
 		// PHASE 2: Prepare a page for us to RDMA into.
 
-		// if (unlikely(wait_for_free_page))
-			 // PP_EXIT(FH_wait_for_free_page);
+		if (unlikely(wait_for_free_page))
+			 PP_EXIT(FH_wait_for_free_page);
 
 		// PP_ENTER(FH_prepare_page);
 		// PP_ENTER(FH_pdp);
@@ -736,16 +736,16 @@ retry:
 		// We couldn't find existing data for this page. So let's fetch it into our new
 		// cnpage.
 		if (!retrieved_cnpage_from_lru) {
-			// PP_STATE(FH_rdma);
-			// PP_ENTER(FH_rdma);
+			PP_STATE(FH_rdma);
+			PP_ENTER(FH_rdma);
 			send_page_fault_to_memory(tsk, (address & PAGE_MASK), cnpage->dma_addr);
-			// PP_EXIT(FH_rdma);
+			PP_EXIT(FH_rdma);
 			fault = DISAGG_FAULT_READ;
 			set_cnpage_received(cnpage); // Mark page as received (but not yet used).
 		}
 
 		// Phase 4: Restore the data page
-		// PP_ENTER(FH_restore_data_page);
+		PP_ENTER(FH_restore_data_page);
 
 		flags = (flags & 0xF) & ~VM_WRITE;
 		check_sync_rss_stat(tsk);
@@ -765,8 +765,8 @@ retry:
 			return_code = FH_NACK_FROM_RESTORE;
 			goto back_off;
 		}
-		// PP_EXIT(FH_restore_data_page);
-		// PP_ENTER(FH_cleanup);
+		PP_EXIT(FH_restore_data_page);
+		PP_ENTER(FH_cleanup);
 
 		// BUG_ON(!pte_present(*ptep));
 		// WARN_ON_ONCE(!pte_write(*ptep));
@@ -776,7 +776,7 @@ retry:
 
 		cnpage_unlock_range(is_kern_shared_mem ? DISAGG_KERN_TGID : tsk->tgid, &pgfault_lock);
 		up_read(&mm->mmap_sem); 
-		// PP_EXIT(FH_cleanup);
+		PP_EXIT(FH_cleanup);
 
 		PP_EXIT(FH_total);
 		pr_pgfault("END PFAULT: tgid[%d] pid[%d] ip[%lx] addr[%lx] errcode[%lx] CPU[%d]\n",
