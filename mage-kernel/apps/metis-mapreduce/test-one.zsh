@@ -22,7 +22,7 @@ output_log="$log_root/$fh.log"
 mkdir -p $log_root
 generate-pretest-logs $cn $fh $bs $local_mem_mib
 
-./metis/obj/app/wrmem -s 5000 -p $fh |& tee $output_log
+/usr/bin/time -v ./metis/obj/app/wrmem -s 5000 -p $fh |& tee $output_log
 
 generate-posttest-logs $cn $fh $bs $local_mem_mib
 echo "test-one: done."
