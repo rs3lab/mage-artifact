@@ -50,7 +50,7 @@ def scrape_metis_data(conn: sql.Connection, base_dir: Path) -> int:
                 continue
             assert int(match.group(1)) == fhthreads
 
-            # Search log_file for a line containing "Average" and extract the third field
+            # Extract the map-reduce times from log_file. 
             map_time_ms, reduce_time_ms = None, None
             with open(log_file, 'r') as f:
                 for line in f:

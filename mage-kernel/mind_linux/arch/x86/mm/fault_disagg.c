@@ -552,11 +552,11 @@ void do_disagg_page_fault(struct task_struct *tsk, struct pt_regs *regs,
 {
 	struct mm_struct *mm = tsk->mm;
 	struct vm_area_struct *vma;
-	int fault, major = 0;
+	int fault; 
 	u32 pkey;
 	int retrieved_cnpage_from_lru = 0;
 	int retry_after_backoff = 0;
-	int return_code = 0;
+	int __maybe_unused return_code = 0;
 	unsigned int backoff_count = 1;
 	spinlock_t *pte_lock = NULL;
 	struct cnpage_lock pgfault_lock;
@@ -564,7 +564,8 @@ void do_disagg_page_fault(struct task_struct *tsk, struct pt_regs *regs,
 	// Why track lock status ourself? because this function reuses error error code, and
 	// relying on `is_spin_locked()` might unlock a _different_ page faulter's PTE.
 	bool mmap_sem_is_locked;
-	bool wait_for_free_page = false;
+	// Only used for "wait for free page" PP. 
+	bool __maybe_unused wait_for_free_page = false;
 
 	PP_STATE(FH_total);
 	// PP_STATE(FH_init_vma);
@@ -581,7 +582,7 @@ void do_disagg_page_fault(struct task_struct *tsk, struct pt_regs *regs,
 	// __profilepoint_start_ns_FH_wait_for_free_page = 0;
 
 	if (tsk->is_mind_binary) {
-		char const *debug_msg;
+		char const __maybe_unused *debug_msg;
 		if (error_code & X86_PF_USER)
 			 debug_msg = "from userspace";
 		else
@@ -630,7 +631,6 @@ retry:
 
 	// ======= CUSTOM PAGE FAULT ROUTINE ====== //
 	// Initial values. Leave them here, in case of `goto retry;`
-	major = 0;
 	retrieved_cnpage_from_lru = 0;
 	retry_after_backoff = 0;
 	mmap_sem_is_locked = true;
@@ -859,7 +859,6 @@ good_area:
 	 */
 	pkey = vma_pkey(vma);
 	fault = handle_mm_fault(vma, address, flags);
-	major |= fault & VM_FAULT_MAJOR;
 
 	/*
 	 * If we need to retry the mmap_sem has already been released,
