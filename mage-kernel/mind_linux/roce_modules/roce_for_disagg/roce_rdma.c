@@ -469,6 +469,23 @@ void *mind_rdma_get_cnqp_handle(void) {
 }
 EXPORT_SYMBOL(mind_rdma_get_cnqp_handle);
 
+// Return a handle to _another thread's_ CNQP, for temporary use. 
+// This is just a quick hack for convenience (need QP during some syscalls). 
+// 
+// Causes race conditions if cnthreads are active! So take mm lock first to stop
+// the cnthreads. Then, drop mm lock after returning cnqp handle. 
+void *mind_rdma_borrow_cnqp_handle(void) {
+	BUG_ON(rdma_state->num_cnqps == 0); 
+
+	// Don't take cm->qp_lock...this function assumes all cnthreads are paused. 
+	return rdma_state->cncm[0];
+}
+EXPORT_SYMBOL(mind_rdma_borrow_cnqp_handle);
+
+// See mind_rdma_borrow_cnqp_handle(). 
+int mind_rdma_return_cnqp_handle(void *qp_handle) {}
+EXPORT_SYMBOL(mind_rdma_return_cnqp_handle);
+
 int mind_rdma_put_qp_handle(void *qp_handle) {
 	struct mind_rdma_cm_state *cm = qp_handle;
 

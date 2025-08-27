@@ -118,6 +118,8 @@ int destroy_rdma_conn_to_mn(void);
 void *mind_rdma_get_fhqp_handle(void);
 void *mind_rdma_get_cnqp_handle(void);
 int mind_rdma_put_qp_handle(void *qp_handle);
+void *mind_rdma_borrow_cnqp_handle(void); 
+int mind_rdma_return_cnqp_handle(void *qp_handle); 
 
 // Page Map/Unmap API
 __u64 mind_rdma_map_dma(struct page *page, size_t size_bytes);

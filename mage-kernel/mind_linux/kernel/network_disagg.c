@@ -567,6 +567,8 @@ mind_rdma_unmap_dma_callback mind_rdma_unmap_dma_fn;
 mind_rdma_get_fhqp_handle_callback mind_rdma_get_fhqp_handle_fn;
 mind_rdma_get_cnqp_handle_callback mind_rdma_get_cnqp_handle_fn;
 mind_rdma_put_qp_handle_callback mind_rdma_put_qp_handle_fn;
+mind_rdma_borrow_cnqp_handle_callback mind_rdma_borrow_cnqp_handle_fn;
+mind_rdma_return_cnqp_handle_callback mind_rdma_return_cnqp_handle_fn;
 mind_rdma_read_callback mind_rdma_read_fn;
 mind_rdma_write_callback mind_rdma_write_fn;
 mind_rdma_read_sync_callback mind_rdma_read_sync_fn;
@@ -619,6 +621,20 @@ void set_mind_rdma_read_sync_fn(mind_rdma_read_sync_callback callbk)
     smp_wmb();
 }
 EXPORT_SYMBOL(set_mind_rdma_read_sync_fn);
+
+void set_mind_rdma_borrow_cnqp_handle_fn(mind_rdma_borrow_cnqp_handle_callback callbk)
+{
+    WRITE_ONCE(mind_rdma_borrow_cnqp_handle_fn, callbk);
+    smp_wmb();
+}
+EXPORT_SYMBOL(set_mind_rdma_borrow_cnqp_handle_fn);
+
+void set_mind_rdma_return_cnqp_handle_fn(mind_rdma_return_cnqp_handle_callback callbk)
+{
+    WRITE_ONCE(mind_rdma_return_cnqp_handle_fn, callbk);
+    smp_wmb();
+}
+EXPORT_SYMBOL(set_mind_rdma_return_cnqp_handle_fn);
 
 void set_mind_rdma_write_sync_fn(mind_rdma_write_sync_callback callbk)
 {
@@ -810,36 +826,89 @@ inline unsigned long map_region_for_dma(void *addr, unsigned long size)
     return mind_rdma_map_dma_fn(addr, size);
 }
 
+// This function may sleep. 
+static struct mind_rdma_reqs *init_batched_rdma_struct(void)
+{
+    struct mind_rdma_reqs *out = kzalloc(sizeof(*out), GFP_KERNEL); 
+    BUG_ON(!out); 
+
+    out->num_reqs = CNTHREAD_RECLAIM_BATCH_SIZE;
+    out->reqs = kzalloc(sizeof(*out->reqs) * out->num_reqs, GFP_KERNEL);
+    BUG_ON(!out->reqs);
+
+    mind_rdma_initialize_batched_write_fn(out);
+    return out; 
+}
+
+// This function may sleep. 
+static void free_batched_rdma_struct(struct mind_rdma_reqs *rdma)
+{
+    kfree(rdma->reqs); 
+    kfree(rdma); 
+}
+
 // This function fills a remote memory region with zeroes.
 // Pass in the _local_ address of the memory region. 
+// 
+// WARNING: THIS FUNCTION ASSUMES the passed-in region was allocated via a single call to 
+//          `rmem_alloc()` (ie: assumes the region contains only one CN DMA laddr -> MN vaddr mapping, 
+//          no fragmentation. 
+// Please take the mm lock (or otherwise stop cnthreads) when calling this function. 
+// Ensure there are no ongoing RDMA requests when calling this function. 
 int zero_rmem_region(struct task_struct *tsk, u64 addr, size_t len)
 {
     unsigned long zero_addr, zero_addr_dma;
-    u64 offset;
+    void *qp_handle; 
+    struct mind_rdma_reqs *rdma; 
+    u64 write_offset; 
 
     BUG_ON(!PAGE_ALIGNED(addr));
     BUG_ON(len % PAGE_SIZE != 0);
-    BUG_ON(mind_rdma_write_sync_fn == NULL);
     BUG_ON(!mind_rdma_map_dma_fn || !mind_rdma_unmap_dma_fn);
-    BUG_ON(!tsk->qp_handle);
+    BUG_ON(!mind_rdma_borrow_cnqp_handle_fn || !mind_rdma_return_cnqp_handle_fn);
+    BUG_ON(!mind_rdma_initialize_batched_write_fn); 
 
     zero_addr = get_zeroed_page(GFP_KERNEL);
     BUG_ON(!zero_addr);
     zero_addr_dma = mind_rdma_map_dma_fn(virt_to_page(zero_addr), PAGE_SIZE);
     BUG_ON(!zero_addr_dma);
 
-    // Zero the page contents.
-    for (offset = 0; offset < len; offset += PAGE_SIZE) {
-        u64 raddr = get_cnmapped_addr(addr + offset);
-        if (raddr == 0) {
-            pr_err("zero_rmem_region: couldn't cnmap laddr 0x%llx!\n", addr + offset);
-            BUG();
+    qp_handle = mind_rdma_borrow_cnqp_handle_fn(); 
+    rdma = init_batched_rdma_struct(); 
+
+    // Zeroing pages one by one slow when initializing large mmaps. 
+    // We use our RoCE module's batch write API to pipeline the process. 
+    write_offset = 0; 
+    while (write_offset < len) { 
+        rdma->num_reqs = 0; 
+
+        // Populate RDMA batch w/ addresses (CNQP can only send BATCH_SIZE at a time)
+        while (write_offset < len && rdma->num_reqs < CNTHREAD_RECLAIM_BATCH_SIZE) { 
+            struct mind_rdma_req *req = &rdma->reqs[rdma->num_reqs]; 
+            u64 raddr; 
+            // Future optimization opportunity: don't cnmap every page, since we know
+            // all callers of this function use contiguously allocated raddr regions. 
+            raddr = get_cnmapped_addr(addr + write_offset);
+            BUG_ON(!raddr); 
+            
+            req->sge.addr = zero_addr_dma; 
+            req->rdma_wr.remote_addr = raddr + rdma->mem_server_base_raddr; 
+
+            rdma->num_reqs++; 
+            write_offset += PAGE_SIZE; 
         }
-        BUG_ON(mind_rdma_write_sync_fn(tsk->qp_handle, (void *) zero_addr_dma, PAGE_SIZE, raddr));
-        // Prevent lockups when when zeroing large remote memory regions. 
+
+        // Write batch to remote
+        if (rdma->num_reqs == 0) 
+            continue; 
+        BUG_ON(mind_rdma_batched_write_fn(qp_handle, rdma, 0)); 
+        mind_rdma_poll_cq_fn(qp_handle, rdma->reqs); 
+
         cond_resched(); 
     }
 
+    free_batched_rdma_struct(rdma); 
+    mind_rdma_return_cnqp_handle_fn(qp_handle); 
     mind_rdma_unmap_dma_fn(zero_addr_dma, PAGE_SIZE);
     free_page(zero_addr);
     return 0;

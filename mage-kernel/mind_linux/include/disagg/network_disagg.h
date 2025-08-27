@@ -373,6 +373,9 @@ typedef void (*mind_rdma_unmap_dma_callback)(u64 laddr_dma, size_t len);
 typedef void *(*mind_rdma_get_fhqp_handle_callback)(void);
 typedef void *(*mind_rdma_get_cnqp_handle_callback)(void);
 typedef int (*mind_rdma_put_qp_handle_callback)(void *qp_handle);
+typedef void *(*mind_rdma_borrow_cnqp_handle_callback)(void); 
+typedef int (*mind_rdma_return_cnqp_handle_callback)(void *qp_handle); 
+
 typedef int (*mind_rdma_read_callback)(void *qp_handle, void *buf, unsigned long addr, unsigned long len,
 		struct mind_rdma_req *out);
 typedef int (*mind_rdma_write_callback)(void *qp_handle, void *lbuf, unsigned long addr, unsigned long len,
@@ -392,6 +395,8 @@ void set_mind_rdma_unmap_dma_fn(mind_rdma_unmap_dma_callback callbk);
 void set_mind_rdma_get_fhqp_handle_fn(mind_rdma_get_fhqp_handle_callback callbk);
 void set_mind_rdma_get_cnqp_handle_fn(mind_rdma_get_cnqp_handle_callback callbk);
 void set_mind_rdma_put_qp_handle_fn(mind_rdma_put_qp_handle_callback callbk);
+void set_mind_rdma_borrow_cnqp_handle_fn(mind_rdma_borrow_cnqp_handle_callback callbk); 
+void set_mind_rdma_return_cnqp_handle_fn(mind_rdma_return_cnqp_handle_callback callbk); 
 void set_mind_rdma_read_fn(mind_rdma_read_callback callbk);
 void set_mind_rdma_write_fn(mind_rdma_write_callback callbk);
 void set_mind_rdma_read_sync_fn(mind_rdma_read_sync_callback callbk);
@@ -409,6 +414,8 @@ extern mind_rdma_unmap_dma_callback mind_rdma_unmap_dma_fn;
 extern mind_rdma_get_fhqp_handle_callback mind_rdma_get_fhqp_handle_fn;
 extern mind_rdma_get_cnqp_handle_callback mind_rdma_get_cnqp_handle_fn;
 extern mind_rdma_put_qp_handle_callback mind_rdma_put_qp_handle_fn;
+extern mind_rdma_borrow_cnqp_handle_callback mind_rdma_borrow_cnqp_handle_fn;
+extern mind_rdma_return_cnqp_handle_callback mind_rdma_return_cnqp_handle_fn;
 extern mind_rdma_read_callback mind_rdma_read_fn;
 extern mind_rdma_write_callback mind_rdma_write_fn;
 extern mind_rdma_read_sync_callback mind_rdma_read_sync_fn;

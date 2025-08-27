@@ -149,6 +149,8 @@ static int __init module_init_fn(void)
 	set_mind_rdma_get_fhqp_handle_fn(mind_rdma_get_fhqp_handle);
 	set_mind_rdma_get_cnqp_handle_fn(mind_rdma_get_cnqp_handle);
 	set_mind_rdma_put_qp_handle_fn(mind_rdma_put_qp_handle);
+	set_mind_rdma_borrow_cnqp_handle_fn(mind_rdma_borrow_cnqp_handle); 
+	set_mind_rdma_return_cnqp_handle_fn(mind_rdma_return_cnqp_handle); 
 	set_mind_rdma_read_fn(mind_rdma_read);
 	set_mind_rdma_write_fn(mind_rdma_write);
 	set_mind_rdma_read_sync_fn(mind_rdma_read_sync);
