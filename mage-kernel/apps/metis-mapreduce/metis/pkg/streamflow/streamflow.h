@@ -34,6 +34,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <string.h>
+#include <stdlib.h>
 
 #ifdef NUMA
 //#include <numa.h>
@@ -268,33 +269,11 @@ struct quickieblock {
  * are not represented in the data structures. */
 typedef struct double_list_elem page_chunk_t;
 
-typedef union page_record header_t;
-typedef struct queue_node queue_node_t;
-typedef union page_record page_record_t;
-typedef struct radix_interior radix_interior_t;
-typedef struct radix_leaf radix_leaf_t;
-typedef struct double_list_elem double_list_elem_t;
-typedef struct double_list double_list_t;
-typedef struct counting_lf_lifo_queue counting_lf_lifo_queue_t;
-typedef struct counting_queue counting_queue_t;
-typedef struct heap heap_t;
-typedef struct superpage superpage_t;
-typedef struct pageblock pageblock_t;
-typedef struct quickieblock quickieblock_t;
-typedef struct buddy_order buddy_order_t;
-
 /* public streamflow operations */
 void numa_start(void);
-void streamflow_thread_finalize(void);
-void *malloc(size_t requested_size);
-void free(void *object);
-void *calloc(size_t nmemb, size_t size);
-void *realloc(void *ptr, size_t size);
-void *valloc(size_t size);
-void *memalign(size_t boundary, size_t size);
-int posix_memalign(void **memptr, size_t alignment, size_t size);
+static void streamflow_thread_finalize(void) {};
 
 #ifdef MEMORY
-extern void timer_handler(int);
+static void timer_handler(int) {}; 
 #endif
 #endif // __STREAMFLOW_H__

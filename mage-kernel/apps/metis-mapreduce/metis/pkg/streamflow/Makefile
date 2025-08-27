@@ -71,8 +71,6 @@ all:	libstreamflow.a
 clean:
 	rm -f *.o *.so *.a
 
-streamflow.o:		streamflow.h streamflow.c
-			$(CC) $(CFLAGS) $(OPT) -Iinclude-$(ASM) -c streamflow.c 
 ummap.o:		ummap.h ummap.c
 			$(CC) $(CFLAGS) $(OPT) -Iinclude-$(ASM) -c ummap.c
 
@@ -82,5 +80,5 @@ malloc_new.o:		malloc_new.cpp streamflow.h
 override.o:		override.c streamflow.h
 			$(CC) $(CFLAGS) $(OPT) -Iinclude-$(ASM) -c override.c
 
-libstreamflow.a:	malloc_new.o streamflow.o override.o ummap.o
-			ar rcs libstreamflow.a override.o streamflow.o malloc_new.o ummap.o
+libstreamflow.a:	malloc_new.o override.o ummap.o
+			ar rcs libstreamflow.a override.o malloc_new.o ummap.o
