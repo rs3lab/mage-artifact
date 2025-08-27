@@ -41,17 +41,18 @@ OPTFLAG := -O3 -g
 INCLUDES := -I$(TOP) -I$(TOP)/lib
 
 # Modify JOS_NCPU to support more than 48 cores
-CFLAGS	:= -std=c99 -fms-extensions -D_GNU_SOURCE -Wall $(OPTFLAG) \
+CFLAGS	:= -std=c99 -fms-extensions -D_GNU_SOURCE -Wall        \
+	   -static -static-libgcc -static-libstdc++                \
+	   -pthread -Wl,--whole-archive -lpthread -Wl,--no-whole-archive \
+		$(OPTFLAG) \
 	   -D_X86_64_ $(INCLUDES) -DJTLS=__thread -DJSHARED_ATTR=  \
 	   -DJOS_CLINE=64 -DCACHE_LINE_SIZE=64 -MD $(SF_MMOPT) 	   \
-	   -DJOS_NCPU=$(MAXCPUS) -fno-omit-frame-pointer           \
-	   -static -static-libgcc -static-libstdc++                \
-	   -pthread -Wl,--whole-archive -lpthread -Wl,--no-whole-archive
+	   -DJOS_NCPU=$(MAXCPUS) -fno-omit-frame-pointer
 
 COMMON_LIB := -static -static-libgcc -static-libstdc++ -lc -lm -lrt -ldl
-LIB	   := -L$(O)/lib -lmetis $(COMMON_LIB) -ljemalloc
+LIB	   := -static -static-libgcc -static-libstdc++ -L$(O)/lib -lmetis $(COMMON_LIB) -ljemalloc
 #SF_LIB	   := -L$(O)/lib -lmetis -ldl -lstreamflow -lnuma $(COMMON_LIB) -Wl,-rpath,obj/lib
-SF_LIB	   := -L$(O)/lib -lmetis -ldl -lnuma $(COMMON_LIB) -Wl,-rpath,obj/lib
+SF_LIB	   := -static -static-libgcc -static-libstdc++ -L$(O)/lib -lmetis -ldl -lnuma $(COMMON_LIB) -Wl,-rpath,obj/lib
 
 LDEPS := $(O)/lib/libmetis.a $(O)/lib/libstreamflow.a
 

@@ -241,9 +241,8 @@ main(int argc, char *argv[])
     }
     enum { wordlength = 3 };
     uint32_t seed = 0;
-    char *fdata = (char *) mmap(NULL, inputsize + 1, PROT_READ | PROT_WRITE,
-	MAP_PRIVATE | MAP_ANONYMOUS | MAP_DDC, -1, 0);
-    assert(fdata != MAP_FAILED);
+    char *fdata = malloc(inputsize + 1); 
+    assert(fdata); 
     uint64_t pos = 0;
     for (uint64_t i = 0; i < inputsize / (wordlength + 1); i++) {
 	for (uint32_t j = 0; j < wordlength; j++)
@@ -260,7 +259,8 @@ main(int argc, char *argv[])
     fflush(stdout);
     mr_print_stats();
     if (!quiet)
-	print_top(&wr_val, ndisp);
+        print_top(&wr_val, ndisp);
     mr_finalize();
+    free(fdata); 
     return 0;
 }

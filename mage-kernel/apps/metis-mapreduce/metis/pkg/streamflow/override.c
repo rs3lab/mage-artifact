@@ -60,7 +60,7 @@ wrapper(void *wargs)
     //discover_cpu();
 #endif
 
-    munmap(wargs, sizeof(wrapper_args_t));
+    free(wargs); 
     result = start_routine(arg);
     streamflow_thread_finalize();
 
@@ -116,15 +116,15 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
      *     circular dependencies that make me worry.
      *  3. Use mmap. This is heavy-weight, but it works and avoids
      *     circular dependencies and any synchronization.
-     * I chose option 3. */
-    wargs =
-	(wrapper_args_t *) mmap(NULL, sizeof(wrapper_args_t),
-				PROT_READ | PROT_WRITE,
-				MAP_ANONYMOUS | MAP_SHARED, -1, 0);
-    if (wargs == MAP_FAILED) {
-	fprintf(stderr, "pthread_create() mmap failed\n");
-	fflush(stderr);
-	exit(1);
+     * I chose option 3.
+     * 
+     * YASH: HACK: use regular malloc instead. 
+     */
+    wargs = malloc(sizeof(wrapper_args_t)); 
+    if (!wargs) {
+        fprintf(stderr, "pthread_create() mmap failed\n");
+        fflush(stderr);
+        exit(1);
     }
 
     wargs->app_start = start_routine;

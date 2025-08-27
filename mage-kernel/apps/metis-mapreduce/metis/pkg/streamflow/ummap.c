@@ -65,15 +65,12 @@ ummap_init()
 	 */
 	uint64_t bytes = UMMAP_UPPER_LEN;
 	for (; bytes > 128 * 1024 * 1024; bytes /= 32) {
-	    uint64_t base = UINT64_C(0x400100000000) + bytes * local_lcpu;
-	    pstate.base =
-		(uint64_t) mmap((void *) base, bytes, PROT_READ | PROT_WRITE,
-				MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
-	    if (pstate.base != (uint64_t) MAP_FAILED)
-		break;
+	    pstate.base = (uint64_t) malloc(bytes); 
+	    if (pstate.base)
+			break;
 	}
 
-	if (pstate.base == (uint64_t) MAP_FAILED) {
+	if (!pstate.base) {
 	    printf("failed to mmap for thread %d\n", local_lcpu);
 	    exit(1);
 	}
