@@ -22,6 +22,19 @@ output_log="$log_root/$fh.log"
 mkdir -p $log_root
 generate-pretest-logs $cn $fh $bs $local_mem_mib
 
+# PERFORMANCE TUNING: 
+# Mage-Linux has unoptimized system call path, so let's reduce number of
+# memory-allocation related syscalls. 
+# 
+# See: https://www.gnu.org/software/libc/manual/html_node/Malloc-Tunable-Parameters.html
+
+# When extending heap, add 128 MiB padding for future allocations. 
+export MALLOC_TOP_PAD_='134217728' # 128 MiB
+# Shrink heap only if topmost 256 MiB is free. 
+export MALLOC_TRIM_THRESHOLD_='268435456' # 256 MiB
+# force new mmap (instead of brk memory) for allocs greater than this size. 
+export MALLOC_MMAP_THRESHOLD_='268435456' # 256 MiB
+
 /usr/bin/time -v ./metis/obj/app/wrmem -s 5000 -p $fh |& tee $output_log
 
 generate-posttest-logs $cn $fh $bs $local_mem_mib
