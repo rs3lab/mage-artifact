@@ -99,6 +99,9 @@ if mind_root is None:
     print('Error: $MIND_ROOT not set!', file=sys.stderr)
     sys.exit(1)
 
+script_dir = Path(mind_root) / 'scripts' / 'evals'
+os.chdir(script_dir)
+
 log_dir = Path(mind_root) / 'apps' / 'metis-mapreduce'
 if not log_dir.is_dir():
     print('Error: $MIND_ROOT/apps/metis-mapreduce missing!', file=sys.stderr)
