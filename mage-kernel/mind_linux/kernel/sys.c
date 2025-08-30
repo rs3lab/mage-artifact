@@ -843,9 +843,6 @@ change_okay:
  */
 SYSCALL_DEFINE0(getpid)
 {
-	if (current->is_remote) {
-		return disagg_get_tgid_in_ns(current->tgid, current->nsproxy->pid_ns_for_children->pid_ns_id);
-	}
 	return task_tgid_vnr(current);
 }
 

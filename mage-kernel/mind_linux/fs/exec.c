@@ -34,7 +34,6 @@
 #include <disagg/network_disagg.h>
 #include <disagg/print_disagg.h>
 #include <disagg/exec_disagg.h>
-#include <disagg/pid_ns_disagg.h>
 #include <disagg/cpu_alloc_disagg.h>
 extern void DEBUG_print_vma(struct mm_struct *mm);
 #endif

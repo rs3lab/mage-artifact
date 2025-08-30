@@ -11,7 +11,6 @@
 #include <linux/pid.h>
 #include <linux/pid_namespace.h>
 #include <linux/user_namespace.h>
-#include <disagg/pid_ns_disagg.h>
 #include <linux/syscalls.h>
 #include <linux/cred.h>
 #include <linux/err.h>
@@ -119,10 +118,6 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 		goto out_dec;
 
 	idr_init(&ns->idr);
-	if (current->is_remote) {
-		ns->pid_ns_id = disagg_gen_pid_ns();		
-		printk(KERN_DEFAULT "create_pid_namespace: parent pid_ns_id: %d, child pid_ns_id %d\n", parent_pid_ns->pid_ns_id, ns->pid_ns_id);
-	}
 	ns->pid_cachep = create_pid_cachep(level + 1);
 	if (ns->pid_cachep == NULL)
 		goto out_free_idr;

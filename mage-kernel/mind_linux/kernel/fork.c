@@ -28,7 +28,6 @@ static int disagg_fork(unsigned long clone_flags, struct task_struct *tsk)
 #else
 #include <disagg/cnthread_disagg.h>
 #include <disagg/network_disagg.h>
-#include <disagg/pid_ns_disagg.h>
 #include <disagg/print_disagg.h>
 #include <disagg/cpu_alloc_disagg.h>
 #endif /* CONFIG_COMPUTE_NODE */
@@ -1816,24 +1815,13 @@ static __latent_entropy struct task_struct *copy_process(
 		p->exit_signal = -1;
 		p->group_leader = current->group_leader;
 		p->tgid = current->tgid;
-		// printk(KERN_DEFAULT "copy_process: CLONE_THREAD, p->tgid: %d\n", p->tgid);
-
 	} else {
 		if (clone_flags & CLONE_PARENT)
 			p->exit_signal = current->group_leader->exit_signal;
 		else
 			p->exit_signal = (clone_flags & CSIGNAL);
 		p->group_leader = p;
-
 		p->tgid = p->pid;
-
-#ifdef CONFIG_COMPUTE_NODE
-		if (p->is_remote) {
-			int pid_ns_id = p->nsproxy->pid_ns_for_children->pid_ns_id;
-			p->tgid = disagg_gen_tgid(pid_ns_id);
-			printk(KERN_DEFAULT "copy_process: !CLONE_THREAD, p->tgid: %d\n", p->tgid);
-		}
-#endif
 	}
 
 	p->nr_dirtied = 0;
