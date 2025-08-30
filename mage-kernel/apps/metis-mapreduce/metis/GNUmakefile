@@ -50,7 +50,7 @@ CFLAGS	:= -std=c99 -fms-extensions -D_GNU_SOURCE -Wall        \
 	   -DJOS_NCPU=$(MAXCPUS) -fno-omit-frame-pointer
 
 COMMON_LIB := -static -static-libgcc -static-libstdc++ -lc -lm -lrt -ldl
-LIB	   := -static -static-libgcc -static-libstdc++ -L$(O)/lib -lmetis $(COMMON_LIB) -ljemalloc
+LIB	   := -static -static-libgcc -static-libstdc++ -L$(O)/lib -lmetis $(COMMON_LIB) 
 #SF_LIB	   := -L$(O)/lib -lmetis -ldl -lstreamflow -lnuma $(COMMON_LIB) -Wl,-rpath,obj/lib
 SF_LIB	   := -static -static-libgcc -static-libstdc++ -L$(O)/lib -lmetis -ldl -lnuma $(COMMON_LIB) -Wl,-rpath,obj/lib
 
