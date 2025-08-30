@@ -10,7 +10,14 @@ cd $MIND_ROOT/apps/metis-mapreduce
 echo "Execute this on the VM host only!"
 
 # COMPILE THE BENCHMARK APPLICATION.
-ssh $cn_control_sshname 'cd $MIND_ROOT/apps/metis-mapreduce/metis && make'
+# 
+# EDIT: Since Mage-Linux syscalls are slow, we need to reduce the frequency of syscalls
+#       to match our application. Simple `malloc` tuning is enough for this....
+#       unfortunately the glibc version inside the Compute VM is just too old for
+#       this tuning to have any effect...
+#       For now, we'll compile Metis _outside_ the VM on epfl4, then copy that binary
+#       into the VM and use it for benchmarks. 
+#ssh $cn_control_sshname 'cd $MIND_ROOT/apps/metis-mapreduce/metis && make'
 
 # SET UP THE KERNEL W CORRECT PARAMS
 function set-params () {
