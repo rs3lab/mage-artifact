@@ -3,12 +3,15 @@ CFLAGS = -g -Wall -O3
 #CFLAGS = -g3 -Wall -O0
 LIBS = -lm -lpthread
 
-default: gups-hotset-move gups-hotset-move-notouch
+default: gups-hotset-move gups-hotset-move-notouch gups-hotset-move-rfbs
 
-all: gups-hotset-move gups-hotset-move-notouch
+all: gups-hotset-move gups-hotset-move-notouch gups-hotset-move-rfbs
 
 gups-hotset-move: gups-hotset-move.o zipf.o
 	$(CC) $(CFLAGS) -o gups-hotset-move gups-hotset-move.o zipf.o $(LIBS)
+
+gups-hotset-move-rfbs: gups-hotset-move-rfbs.o zipf.o
+	$(CC) $(CFLAGS) -o gups-hotset-move-rfbs gups-hotset-move-rfbs.o zipf.o $(LIBS)
 
 gups-hotset-move-notouch: gups-hotset-move-notouch.o zipf.o
 	$(CC) $(CFLAGS) -o gups-hotset-move-notouch gups-hotset-move-notouch.o zipf.o -DNOTOUCH  $(LIBS)
