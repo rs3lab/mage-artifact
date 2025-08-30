@@ -30,6 +30,7 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <ctype.h>
+#include <malloc.h>
 #include <time.h>
 #include <strings.h>
 #include <unistd.h>
@@ -206,6 +207,15 @@ int
 main(int argc, char *argv[])
 {
     affinity_set(0);
+
+    // Reduce syscalls...helps w/ Mage performance. 
+    int ret = mallopt(M_TOP_PAD, 134217728UL);
+    assert(ret == 1); 
+    ret = mallopt(M_TRIM_THRESHOLD, 268435456UL); 
+    assert(ret == 1); 
+    ret = mallopt(M_MMAP_THRESHOLD, 268435456UL); 
+    assert(ret == 1); 
+
     final_data_kvs_len_t wr_val;
     int nprocs = 0, map_tasks = 0, ndisp = 5, reduce_tasks = 0, quiet = 0, fast = 0;
     uint64_t inputsize = 0x80000000;
