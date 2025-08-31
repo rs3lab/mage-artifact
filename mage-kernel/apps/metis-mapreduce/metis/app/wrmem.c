@@ -213,7 +213,7 @@ main(int argc, char *argv[])
     assert(ret == 1); 
     ret = mallopt(M_TRIM_THRESHOLD, 268435456UL); 
     assert(ret == 1); 
-    ret = mallopt(M_MMAP_THRESHOLD, 268435456UL); 
+    ret = mallopt(M_MMAP_THRESHOLD, 33554432UL); 
     assert(ret == 1); 
 
     final_data_kvs_len_t wr_val;
